@@ -53,12 +53,22 @@
 pip install -r requirements.txt
 pip install -r requirements-dev.txt   # 测试
 
-# 运行
+# 运行（任选其一，必须在仓库根目录 E:\Code\netops_studio 下执行）
+
+# 方式 A：一键启动器（最省事，推荐）
+python run.py
+
+# 方式 B：以包模块方式运行（需先进入 src/ 目录）
+cd src
 python -m netops_studio.main
 
 # 测试
 pytest
 ```
+
+> ⚠️ 不要直接 `python src/netops_studio/main.py` 或在该文件所在目录 `python main.py`——
+> main.py 使用相对导入（`from .app import ...`），直接当脚本跑会因「找不到父包」而报
+> `ImportError: attempted relative import with no known parent package`。请用上面的方式 A 或 B。
 
 > 注意：运行 GUI 需要桌面环境（PySide6 + Qt）。无显示环境可用 pytest 验证 core 纯逻辑。
 

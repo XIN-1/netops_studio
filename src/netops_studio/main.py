@@ -14,9 +14,9 @@ from .app import Theme, TabRegistry, TabDescriptor, container, set_locale
 from .app.application import NetOpsApplication
 from .app.event_bus import bus
 
-# 项目根（src/netops_studio 的上两级）
-PKG_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(PKG_ROOT, "src", "netops_studio", "data")
+# 包目录（src/netops_studio），data 位于同级 data/
+PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(PKG_ROOT, "data")
 CONFIG_PATH = os.path.join(DATA_DIR, "config.yaml")
 
 DEFAULT_CONFIG = {
