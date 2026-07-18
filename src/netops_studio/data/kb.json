@@ -1,0 +1,42 @@
+[
+  {
+    "keywords": ["忘记密码", "password", "reset", "重置密码", "console", "bootrom"],
+    "answer": "通过 Console 口进入 BootROM，选择跳过启动配置（skip startup-config）启动，启动后重新设置 enable 密码并保存：enable secret <newpass>；write memory。"
+  },
+  {
+    "keywords": ["vlan", "划分vlan", "trunk", "接入", "交换机端口"],
+    "answer": "创建 VLAN：vlan 10；接口加入 access vlan：interface gi0/1 → switchport mode access → switchport access vlan 10；上联中继：switchport mode trunk → switchport trunk allowed vlan 10,20。"
+  },
+  {
+    "keywords": ["ping不通", "不通", "unreachable", "无法访问", "timeout", "超时"],
+    "answer": "排查步骤：1) 检查本端 IP/掩码/网关；2) 检查对端是否在线及防火墙策略；3) 检查路由表；4) 检查 ACL/安全组是否拦截。可让 AI 助手生成 ping / traceroute 命令定位。"
+  },
+  {
+    "keywords": ["ospf", "路由协议", "邻居"],
+    "answer": "启用 OSPF：router ospf 1 → network 0.0.0.0 255.255.255.255 area 0；检查邻居状态：show ip ospf neighbor（应为 Full）；检查 area 与认证是否一致。"
+  },
+  {
+    "keywords": ["acl", "访问控制", "访问列表"],
+    "answer": "标准 ACL：access-list 10 permit 192.168.1.0 0.0.0.255；应用到接口出方向：interface gi0/0 → ip access-group 10 out。注意 ACL 末尾隐含 deny any。"
+  },
+  {
+    "keywords": ["dhcp", "地址池", "自动获取"],
+    "answer": "配置 DHCP 地址池：ip dhcp pool VLAN10 → network 192.168.10.0 255.255.255.0 → default-router 192.168.10.1 → dns-server 8.8.8.8；排除地址：ip dhcp excluded-address 192.168.10.1 192.168.10.10。"
+  },
+  {
+    "keywords": ["端口安全", "port-security", "mac绑定"],
+    "answer": "接口启用端口安全：switchport port-security → switchport port-security maximum 2 → switchport port-security violation restrict；可绑定静态 MAC：switchport port-security mac-address <mac>。"
+  },
+  {
+    "keywords": ["nat", "地址转换", "pat", "上网"],
+    "answer": "配置 PAT 出网：ip nat inside source list 1 interface gi0/0 overload；内网接口 ip nat inside，外网接口 ip nat outside；ACL 1 定义内网网段。"
+  },
+  {
+    "keywords": ["stp", "生成树", "环路", "根桥"],
+    "answer": "配置 Rapid PVST：spanning-tree mode rapid-pvst；指定根桥：spanning-tree vlan 10 priority 4096；检查阻塞端口：show spanning-tree。"
+  },
+  {
+    "keywords": ["ssh", "远程登录", "安全登录"],
+    "answer": "启用 SSH：ip domain-name example.com → crypto key generate rsa modulus 2048 → line vty 0 4 → transport input ssh → login local；并创建本地用户。"
+  }
+]

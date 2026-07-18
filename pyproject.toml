@@ -1,0 +1,36 @@
+[project]
+name = "netops-studio"
+version = "0.2.0"
+description = "NetOps Studio / 网维工作台 —— 面向网络工程师与 IT 运维的集成化桌面运维工作台"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "NetOps Team" }]
+dependencies = [
+    "PySide6>=6.6",
+    "paramiko>=3.4",
+    "netmiko>=4.3",
+    "pandas>=2.1",
+    "numpy>=1.26",
+    "pyyaml>=6.0",
+    "cryptography>=42.0",
+    "pysnmp>=6.1",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-qt>=4.4"]
+
+[project.scripts]
+netops-studio = "netops_studio.main:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

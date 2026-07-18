@@ -1,0 +1,7 @@
+{
+  "id": "netbox_sync",
+  "name": "示例：NetBox 资产同步",
+  "version": "0.9.0",
+  "description": "演示插件：将发现到的资产批量同步至 NetBox IPAM。",
+  "author": "NetOps Studio"
+}

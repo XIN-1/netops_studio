@@ -1,0 +1,7 @@
+{
+  "id": "hello_alert",
+  "name": "示例：告警桌面通知",
+  "version": "1.0.0",
+  "description": "演示插件：触发器产生告警时弹出桌面通知。",
+  "author": "NetOps Studio"
+}

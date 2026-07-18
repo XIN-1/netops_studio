@@ -1,0 +1,88 @@
+"""性能与测速模块（gui/speed_test_module.py）。对应 core/speedtest.py。"""
+
+from __future__ import annotations
+
+from PySide6.QtWidgets import (
+    QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPushButton,
+    QTextEdit, QVBoxLayout, QWidget,
+)
+
+from ..app import AsyncWorker, bus
+from ..app.async_worker import JobBase
+from ..core.speedtest import ExternalTester, Iperf3Client, find_iperf3
+
+
+class ExternalJob(JobBase):
+    def __init__(self, download_secs: int = 8) -> None:
+        super().__init__()
+        self.download_secs = download_secs
+
+    def run_job(self) -> None:
+        tester = ExternalTester()
+        res = tester.measure(download_secs=self.download_secs)
+        self.signals.result.emit(res)
+
+
+class SpeedTestModule(QWidget):
+    def __init__(self) -> None:
+        super().__init__()
+        self.worker = AsyncWorker()
+        root = QVBoxLayout(self)
+
+        # 外网测速
+        ext = QGroupBox("外网测速（HTTP 探针）")
+        el = QVBoxLayout(ext)
+        self.ext_btn = QPushButton("开始测速")
+        self.ext_btn.clicked.connect(self._external)
+        el.addWidget(self.ext_btn)
+        self.ext_out = QLabel("下行 / 上行 / 延迟：—")
+        el.addWidget(self.ext_out)
+        root.addWidget(ext)
+
+        # iperf3 内网
+        iperf = QGroupBox("iperf3 内网测速")
+        il = QFormLayout(iperf)
+        self.server = QLineEdit("127.0.0.1")
+        self.port = QLineEdit("5201")
+        self.dur = QLineEdit("10")
+        il.addRow("服务端 IP", self.server)
+        il.addRow("端口", self.port)
+        il.addRow("时长(秒)", self.dur)
+        btn = QPushButton("运行 iperf3 客户端")
+        btn.clicked.connect(self._iperf)
+        il.addRow(btn)
+        root.addWidget(iperf)
+
+        self.console = QTextEdit()
+        self.console.setReadOnly(True)
+        root.addWidget(self.console)
+
+        self._log(f"iperf3 内置二进制：{find_iperf3() or '未找到（将使用系统 PATH 或提示安装）'}")
+
+    def _log(self, msg: str) -> None:
+        self.console.append(msg)
+
+    def _external(self) -> None:
+        self.ext_btn.setEnabled(False)
+        job = ExternalJob(download_secs=8)
+        self.worker.submit(job, on_result=self._on_ext, on_finished=lambda: self.ext_btn.setEnabled(True))
+
+    def _on_ext(self, res) -> None:
+        self.ext_out.setText(
+            f"下行 {res.download_mbps} Mbps | 上行 {res.upload_mbps} Mbps | "
+            f"延迟 {res.latency_ms} ms | 丢包 {res.loss_percent}%"
+        )
+        self._log(f"外网测速：{res.download_mbps} Mbps 下行，延迟 {res.latency_ms} ms")
+        bus.publish("speedtest.result", res)
+
+    def _iperf(self) -> None:
+        try:
+            client = Iperf3Client()
+            if not client.available:
+                self._log("未找到 iperf3，请安装 iperf3 或放入 resources/bin/<os>/")
+                return
+            res = client.run(self.server.text(), int(self.port.text()), duration=int(self.dur.text()))
+            self._log(f"iperf3 结果：{res.direction} {res.bandwidth_mbps} Mbps")
+            bus.publish("speedtest.result", res)
+        except Exception as exc:  # noqa: BLE001
+            self._log(f"iperf3 失败：{exc}")

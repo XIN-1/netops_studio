@@ -1,0 +1,96 @@
+{
+  "version": "2024-06",
+  "updated": "2024-06-01",
+  "records": [
+    {
+      "cve_id": "CVE-2021-44228",
+      "product": "log4j",
+      "vendor": "Apache",
+      "severity": "critical",
+      "cvss": 10.0,
+      "summary": "Apache Log4j2 JNDI 远程代码执行漏洞（Log4Shell）。",
+      "fixed_in": "2.15.0"
+    },
+    {
+      "cve_id": "CVE-2014-0160",
+      "product": "openssl",
+      "vendor": "OpenSSL",
+      "severity": "high",
+      "cvss": 7.5,
+      "summary": "OpenSSL TLS 心跳扩展越界读取（Heartbleed），可泄露内存敏感数据。",
+      "fixed_in": "1.0.1g"
+    },
+    {
+      "cve_id": "CVE-2017-0144",
+      "product": "smb",
+      "vendor": "Microsoft",
+      "severity": "critical",
+      "cvss": 9.3,
+      "summary": "Windows SMB 远程代码执行漏洞（EternalBlue），被 WannaCry 利用。",
+      "fixed_in": "MS17-010"
+    },
+    {
+      "cve_id": "CVE-2018-13379",
+      "product": "fortios",
+      "vendor": "Fortinet",
+      "severity": "critical",
+      "cvss": 9.8,
+      "summary": "FortiOS SSL VPN 路径穿越导致配置文件（含会话令牌）泄露。",
+      "fixed_in": "6.0.5"
+    },
+    {
+      "cve_id": "CVE-2019-0708",
+      "product": "rdp",
+      "vendor": "Microsoft",
+      "severity": "critical",
+      "cvss": 9.8,
+      "summary": "Remote Desktop Services 远程代码执行漏洞（BlueKeep）。",
+      "fixed_in": "KB4499175"
+    },
+    {
+      "cve_id": "CVE-2020-1472",
+      "product": "active directory",
+      "vendor": "Microsoft",
+      "severity": "critical",
+      "cvss": 10.0,
+      "summary": "Netlogon 权限提升漏洞（Zerologon），可接管域控。",
+      "fixed_in": "KB4557222"
+    },
+    {
+      "cve_id": "CVE-2022-30190",
+      "product": "msdt",
+      "vendor": "Microsoft",
+      "severity": "high",
+      "cvss": 7.8,
+      "summary": "Microsoft Windows 支持诊断工具（MSDT）远程代码执行漏洞（Follina）。",
+      "fixed_in": "KB5015808"
+    },
+    {
+      "cve_id": "CVE-2023-34362",
+      "product": "movabletype",
+      "vendor": "Six Apart",
+      "severity": "critical",
+      "cvss": 9.8,
+      "summary": "Movable Type 任意文件上传导致远程代码执行。",
+      "fixed_in": "8.0.5"
+    },
+    {
+      "cve_id": "CVE-2021-34527",
+      "product": "printnightmare",
+      "vendor": "Microsoft",
+      "severity": "critical",
+      "cvss": 8.8,
+      "summary": "Windows Print Spooler 远程代码执行漏洞（PrintNightmare）。",
+      "fixed_in": "KB5005010"
+    },
+    {
+      "cve_id": "CVE-2020-0796",
+      "product": "smb",
+      "vendor": "Microsoft",
+      "severity": "critical",
+      "cvss": 10.0,
+      "summary": "SMBv3 压缩远程代码执行漏洞（SMBGhost）。",
+      "fixed_in": "KB4551762"
+    }
+  ]
+}

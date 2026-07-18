@@ -1,0 +1,16 @@
+PySide6>=6.6
+paramiko>=3.4
+netmiko>=4.3
+pandas>=2.1
+numpy>=1.26
+pyyaml>=6.0
+cryptography>=42.0
+pysnmp>=6.1
+requests>=2.31
+# 报表导出
+reportlab>=4.0
+python-docx>=1.1
+openpyxl>=3.1
+# 集成 API（可选，未安装时相关功能降级）
+fastapi>=0.110
+uvicorn>=0.29
