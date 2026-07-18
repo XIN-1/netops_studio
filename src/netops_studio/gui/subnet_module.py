@@ -3,35 +3,55 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
-    QFormLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QVBoxLayout, QWidget,
+    QFormLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit, QVBoxLayout, QWidget,
 )
 
-from ..core.subnet import calculate, subnet_split, ip_in_network
+from ..core.subnet import calculate, subnet_split
+from .widgets import Card, GhostButton, PrimaryButton, SectionTitle
 
 
 class SubnetModule(QWidget):
     def __init__(self) -> None:
         super().__init__()
         root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(16)
 
+        head = QVBoxLayout()
+        head.setSpacing(2)
+        t = QLabel("子网计算器")
+        t.setProperty("role", "title")
+        s = QLabel("CIDR 解析、地址范围、子网拆分")
+        s.setProperty("role", "subtitle")
+        head.addWidget(t)
+        head.addWidget(s)
+        root.addLayout(head)
+
+        card = Card()
+        card.body.addWidget(SectionTitle("输入"))
         form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
         self.cidr = QLineEdit("192.168.1.0/24")
         form.addRow("CIDR / IP", self.cidr)
-        root.addLayout(form)
+        card.body.addLayout(form)
 
         btn_row = QHBoxLayout()
-        self.run_btn = QPushButton("计算")
+        self.run_btn = PrimaryButton("计算")
         self.run_btn.clicked.connect(self._calc)
-        self.split_btn = QPushButton("拆分为 /26")
+        self.split_btn = GhostButton("拆分为 /26")
         self.split_btn.clicked.connect(self._split)
         btn_row.addWidget(self.run_btn)
         btn_row.addWidget(self.split_btn)
         btn_row.addStretch()
-        root.addLayout(btn_row)
+        card.body.addLayout(btn_row)
+        root.addWidget(card)
 
+        out_card = Card()
+        out_card.body.addWidget(SectionTitle("结果"))
         self.out = QTextEdit()
         self.out.setReadOnly(True)
-        root.addWidget(self.out)
+        out_card.body.addWidget(self.out, 1)
+        root.addWidget(out_card, 1)
 
     def _calc(self) -> None:
         try:

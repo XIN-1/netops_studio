@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QTabWidget, QTextEdit, QVBoxLayout, QWidget,
+    QTabWidget, QTextEdit, QVBoxLayout, QWidget,
 )
 
 from ..core import codec
@@ -16,6 +16,7 @@ from ..core.toolbox import (
     bandwidth, build_wol, gen_password, mask_to_wildcard, oui_lookup,
     unit_convert, wildcard_to_mask,
 )
+from .widgets import Card, PrimaryButton
 
 
 def _result_box() -> QTextEdit:
@@ -29,9 +30,21 @@ class ToolboxModule(QWidget):
     def __init__(self) -> None:
         super().__init__()
         root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(16)
+
+        head = QVBoxLayout()
+        head.setSpacing(2)
+        t = QLabel("工具箱")
+        t.setProperty("role", "title")
+        s = QLabel("掩码 / OUI / 密码 / 带宽 / 单位 / WOL / 进制 / 时间戳")
+        s.setProperty("role", "subtitle")
+        head.addWidget(t)
+        head.addWidget(s)
+        root.addLayout(head)
 
         tabs = QTabWidget()
-        root.addWidget(tabs)
+        root.addWidget(tabs, 1)
 
         tabs.addTab(self._mask_tab(), "掩码/通配符")
         tabs.addTab(self._oui_tab(), "OUI 查询")
@@ -44,11 +57,12 @@ class ToolboxModule(QWidget):
 
     # ------------------------------------------------------------------ 掩码
     def _mask_tab(self) -> QWidget:
-        w = QWidget()
+        w = Card()
         out = _result_box()
-        layout = QVBoxLayout(w)
+        layout = w.body
 
         form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
         mask = QLineEdit("255.255.255.0")
         wc = QLineEdit("0.0.0.255")
         form.addRow("子网掩码", mask)
@@ -56,44 +70,44 @@ class ToolboxModule(QWidget):
         layout.addLayout(form)
 
         btn_row = QHBoxLayout()
-        b1 = QPushButton("掩码 → 通配符")
+        b1 = PrimaryButton("掩码 → 通配符")
         b1.clicked.connect(lambda: self._safe(out, lambda: mask_to_wildcard(mask.text())))
-        b2 = QPushButton("通配符 → 掩码")
+        b2 = PrimaryButton("通配符 → 掩码")
         b2.clicked.connect(lambda: self._safe(out, lambda: wildcard_to_mask(wc.text())))
         btn_row.addWidget(b1)
         btn_row.addWidget(b2)
-        btn_row.addStretch()
         layout.addLayout(btn_row)
-        layout.addWidget(out)
+        layout.addWidget(out, 1)
         return w
 
     # ------------------------------------------------------------------ OUI
     def _oui_tab(self) -> QWidget:
-        w = QWidget()
+        w = Card()
         out = _result_box()
-        layout = QVBoxLayout(w)
+        layout = w.body
 
         form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
         mac = QLineEdit("00:0C:29:AB:CD:EF")
         form.addRow("MAC 地址", mac)
         layout.addLayout(form)
 
         btn_row = QHBoxLayout()
-        b = QPushButton("查询厂商")
+        b = PrimaryButton("查询厂商")
         b.clicked.connect(lambda: self._safe(out, lambda: oui_lookup(mac.text()) or "（未知厂商）"))
         btn_row.addWidget(b)
-        btn_row.addStretch()
         layout.addLayout(btn_row)
-        layout.addWidget(out)
+        layout.addWidget(out, 1)
         return w
 
     # ---------------------------------------------------------------- 密码
     def _pwd_tab(self) -> QWidget:
-        w = QWidget()
+        w = Card()
         out = _result_box()
-        layout = QVBoxLayout(w)
+        layout = w.body
 
         form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
         length = QLineEdit("16")
         form.addRow("长度", length)
         layout.addLayout(form)
@@ -105,11 +119,10 @@ class ToolboxModule(QWidget):
         c_symbol = QCheckBox("符号"); c_symbol.setChecked(True)
         for c in (c_upper, c_lower, c_digit, c_symbol):
             opt_row.addWidget(c)
-        opt_row.addStretch()
         layout.addLayout(opt_row)
 
         btn_row = QHBoxLayout()
-        b = QPushButton("生成密码")
+        b = PrimaryButton("生成密码")
         b.clicked.connect(
             lambda: self._safe(
                 out,
@@ -121,18 +134,18 @@ class ToolboxModule(QWidget):
             )
         )
         btn_row.addWidget(b)
-        btn_row.addStretch()
         layout.addLayout(btn_row)
-        layout.addWidget(out)
+        layout.addWidget(out, 1)
         return w
 
     # ---------------------------------------------------------------- 带宽
     def _bw_tab(self) -> QWidget:
-        w = QWidget()
+        w = Card()
         out = _result_box()
-        layout = QVBoxLayout(w)
+        layout = w.body
 
         form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
         size = QLineEdit("1000000")
         secs = QLineEdit("1")
         ovh = QLineEdit("1.0")
@@ -142,7 +155,7 @@ class ToolboxModule(QWidget):
         layout.addLayout(form)
 
         btn_row = QHBoxLayout()
-        b = QPushButton("计算带宽")
+        b = PrimaryButton("计算带宽")
         b.clicked.connect(
             lambda: self._safe(
                 out,
@@ -150,18 +163,18 @@ class ToolboxModule(QWidget):
             )
         )
         btn_row.addWidget(b)
-        btn_row.addStretch()
         layout.addLayout(btn_row)
-        layout.addWidget(out)
+        layout.addWidget(out, 1)
         return w
 
     # ---------------------------------------------------------------- 单位
     def _unit_tab(self) -> QWidget:
-        w = QWidget()
+        w = Card()
         out = _result_box()
-        layout = QVBoxLayout(w)
+        layout = w.body
 
         form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
         value = QLineEdit("1")
         from_u = QComboBox()
         from_u.addItems(["B", "KB", "MB", "GB", "TB", "KiB", "MiB", "GiB", "TiB",
@@ -176,7 +189,7 @@ class ToolboxModule(QWidget):
         layout.addLayout(form)
 
         btn_row = QHBoxLayout()
-        b = QPushButton("换算")
+        b = PrimaryButton("换算")
         b.clicked.connect(
             lambda: self._safe(
                 out,
@@ -185,24 +198,24 @@ class ToolboxModule(QWidget):
             )
         )
         btn_row.addWidget(b)
-        btn_row.addStretch()
         layout.addLayout(btn_row)
-        layout.addWidget(out)
+        layout.addWidget(out, 1)
         return w
 
     # ---------------------------------------------------------------- WOL
     def _wol_tab(self) -> QWidget:
-        w = QWidget()
+        w = Card()
         out = _result_box()
-        layout = QVBoxLayout(w)
+        layout = w.body
 
         form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
         mac = QLineEdit("00:11:22:33:44:55")
         form.addRow("目标 MAC", mac)
         layout.addLayout(form)
 
         btn_row = QHBoxLayout()
-        b = QPushButton("构造魔术包")
+        b = PrimaryButton("构造魔术包")
         b.clicked.connect(
             lambda: self._safe(
                 out,
@@ -210,9 +223,8 @@ class ToolboxModule(QWidget):
             )
         )
         btn_row.addWidget(b)
-        btn_row.addStretch()
         layout.addLayout(btn_row)
-        layout.addWidget(out)
+        layout.addWidget(out, 1)
         return w
 
     @staticmethod
@@ -222,11 +234,12 @@ class ToolboxModule(QWidget):
 
     # ---------------------------------------------------------------- 进制
     def _base_tab(self) -> QWidget:
-        w = QWidget()
+        w = Card()
         out = _result_box()
-        layout = QVBoxLayout(w)
+        layout = w.body
 
         form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
         value = QLineEdit("255")
         from_b = QComboBox()
         from_b.addItems(["10", "2", "8", "16"])
@@ -240,7 +253,7 @@ class ToolboxModule(QWidget):
         layout.addLayout(form)
 
         btn_row = QHBoxLayout()
-        b = QPushButton("转换")
+        b = PrimaryButton("转换")
         b.clicked.connect(
             lambda: self._safe(
                 out,
@@ -249,18 +262,18 @@ class ToolboxModule(QWidget):
             )
         )
         btn_row.addWidget(b)
-        btn_row.addStretch()
         layout.addLayout(btn_row)
-        layout.addWidget(out)
+        layout.addWidget(out, 1)
         return w
 
     # -------------------------------------------------------------- 时间戳
     def _ts_tab(self) -> QWidget:
-        w = QWidget()
+        w = Card()
         out = _result_box()
-        layout = QVBoxLayout(w)
+        layout = w.body
 
         form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
         value = QLineEdit("now")
         to = QComboBox()
         to.addItems(["human", "ts"])
@@ -269,7 +282,7 @@ class ToolboxModule(QWidget):
         layout.addLayout(form)
 
         btn_row = QHBoxLayout()
-        b = QPushButton("转换")
+        b = PrimaryButton("转换")
         b.clicked.connect(
             lambda: self._safe(
                 out,
@@ -277,9 +290,8 @@ class ToolboxModule(QWidget):
             )
         )
         btn_row.addWidget(b)
-        btn_row.addStretch()
         layout.addLayout(btn_row)
-        layout.addWidget(out)
+        layout.addWidget(out, 1)
         return w
 
     # -------------------------------------------------------------- 工具

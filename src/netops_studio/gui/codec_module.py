@@ -3,19 +3,34 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
-    QComboBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
-    QTextEdit, QVBoxLayout, QWidget,
+    QLabel, QComboBox, QFormLayout, QHBoxLayout, QTextEdit, QVBoxLayout, QWidget,
 )
 
 from ..core import codec
+from .widgets import Card, PrimaryButton, SectionTitle
 
 
 class CodecModule(QWidget):
     def __init__(self) -> None:
         super().__init__()
         root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(16)
 
+        head = QVBoxLayout()
+        head.setSpacing(2)
+        t = QLabel("编解码工具")
+        t.setProperty("role", "title")
+        s = QLabel("Base64 / URL / 哈希 / 进制 / 时间戳 / JWT / PEM")
+        s.setProperty("role", "subtitle")
+        head.addWidget(t)
+        head.addWidget(s)
+        root.addLayout(head)
+
+        card = Card()
+        card.body.addWidget(SectionTitle("操作选择"))
         form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
         self.op = QComboBox()
         self.op.addItems([
             "Base64 编码", "Base64 解码", "URL 编码", "URL 解码",
@@ -31,22 +46,26 @@ class CodecModule(QWidget):
         self.to_base.addItems(["16", "2", "8", "10"])
         form.addRow("操作", self.op)
         form.addRow("算法/参数", self.algo)
-        root.addLayout(form)
+        card.body.addLayout(form)
+        root.addWidget(card)
 
         self.inp = QTextEdit()
         self.inp.setPlaceholderText("输入待处理内容…")
-        root.addWidget(self.inp)
+        root.addWidget(self.inp, 1)
 
         btn_row = QHBoxLayout()
-        self.run_btn = QPushButton("处理")
+        self.run_btn = PrimaryButton("处理")
         self.run_btn.clicked.connect(self._run)
         btn_row.addWidget(self.run_btn)
         btn_row.addStretch()
         root.addLayout(btn_row)
 
+        out_card = Card()
+        out_card.body.addWidget(SectionTitle("结果"))
         self.out = QTextEdit()
         self.out.setReadOnly(True)
-        root.addWidget(self.out)
+        out_card.body.addWidget(self.out, 1)
+        root.addWidget(out_card, 1)
         self._on_op()
 
     def _on_op(self) -> None:

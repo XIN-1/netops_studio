@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QComboBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
-    QTableWidget, QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget,
+    QComboBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QTableWidget,
+    QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget,
 )
 
 from ..app import AsyncWorker
 from ..app.async_worker import JobBase
 from ..core import diagnostics
+from .widgets import Card, GhostButton, PrimaryButton, SectionTitle
 
 
 class DiagnosticJob(JobBase):
@@ -45,8 +46,23 @@ class DiagnosticModule(QWidget):
         super().__init__()
         self.worker = AsyncWorker()
         root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(16)
 
+        head = QVBoxLayout()
+        head.setSpacing(2)
+        t = QLabel("连通性诊断")
+        t.setProperty("role", "title")
+        s = QLabel("Ping / Traceroute / 端口扫描 / DNS / HTTP 探测")
+        s.setProperty("role", "subtitle")
+        head.addWidget(t)
+        head.addWidget(s)
+        root.addLayout(head)
+
+        card = Card()
+        card.body.addWidget(SectionTitle("诊断参数"))
         form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
         self.op = QComboBox()
         self.op.addItems(["Ping", "Traceroute", "端口扫描", "DNS 查询", "HTTP 探测"])
         self.target = QLineEdit("8.8.8.8")
@@ -54,25 +70,27 @@ class DiagnosticModule(QWidget):
         form.addRow("操作", self.op)
         form.addRow("目标", self.target)
         form.addRow("端口(扫描用)", self.ports)
-        root.addLayout(form)
+        card.body.addLayout(form)
 
         btn_row = QHBoxLayout()
-        self.run_btn = QPushButton("运行")
+        self.run_btn = PrimaryButton("运行")
         self.run_btn.clicked.connect(self._run)
-        self.stop_btn = QPushButton("停止")
+        self.stop_btn = GhostButton("停止")
         self.stop_btn.clicked.connect(self.worker.cancel)
         btn_row.addWidget(self.run_btn)
         btn_row.addWidget(self.stop_btn)
         btn_row.addStretch()
-        root.addLayout(btn_row)
+        card.body.addLayout(btn_row)
+        root.addWidget(card)
 
         self.progress = QLabel("就绪")
+        self.progress.setProperty("role", "muted")
         root.addWidget(self.progress)
 
         self.table = QTableWidget(0, 4)
         self.table.setHorizontalHeaderLabels(["字段", "值", "", ""])
         self.table.horizontalHeader().setStretchLastSection(True)
-        root.addWidget(self.table)
+        root.addWidget(self.table, 1)
 
         self.raw = QTextEdit()
         self.raw.setReadOnly(True)

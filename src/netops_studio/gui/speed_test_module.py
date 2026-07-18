@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
-    QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPushButton,
-    QTextEdit, QVBoxLayout, QWidget,
+    QFormLayout, QLabel, QLineEdit, QTextEdit, QVBoxLayout, QWidget,
 )
 
 from ..app import AsyncWorker, bus
 from ..app.async_worker import JobBase
 from ..core.speedtest import ExternalTester, Iperf3Client, find_iperf3
+from .widgets import Card, PrimaryButton, SectionTitle
 
 
 class ExternalJob(JobBase):
@@ -28,34 +28,53 @@ class SpeedTestModule(QWidget):
         super().__init__()
         self.worker = AsyncWorker()
         root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(16)
+
+        head = QVBoxLayout()
+        head.setSpacing(2)
+        t = QLabel("性能与测速")
+        t.setProperty("role", "title")
+        s = QLabel("外网探测 + iperf3 内网吞吐")
+        s.setProperty("role", "subtitle")
+        head.addWidget(t)
+        head.addWidget(s)
+        root.addLayout(head)
 
         # 外网测速
-        ext = QGroupBox("外网测速（HTTP 探针）")
-        el = QVBoxLayout(ext)
-        self.ext_btn = QPushButton("开始测速")
+        ext = Card()
+        ext.body.addWidget(SectionTitle("外网测速（HTTP 探针）"))
+        self.ext_btn = PrimaryButton("开始测速")
         self.ext_btn.clicked.connect(self._external)
-        el.addWidget(self.ext_btn)
+        ext.body.addWidget(self.ext_btn)
         self.ext_out = QLabel("下行 / 上行 / 延迟：—")
-        el.addWidget(self.ext_out)
+        self.ext_out.setProperty("role", "muted")
+        ext.body.addWidget(self.ext_out)
         root.addWidget(ext)
 
         # iperf3 内网
-        iperf = QGroupBox("iperf3 内网测速")
-        il = QFormLayout(iperf)
+        iperf = Card()
+        iperf.body.addWidget(SectionTitle("iperf3 内网测速"))
+        il = QFormLayout()
+        il.setContentsMargins(0, 0, 0, 0)
         self.server = QLineEdit("127.0.0.1")
         self.port = QLineEdit("5201")
         self.dur = QLineEdit("10")
         il.addRow("服务端 IP", self.server)
         il.addRow("端口", self.port)
         il.addRow("时长(秒)", self.dur)
-        btn = QPushButton("运行 iperf3 客户端")
+        iperf.body.addLayout(il)
+        btn = PrimaryButton("运行 iperf3 客户端")
         btn.clicked.connect(self._iperf)
-        il.addRow(btn)
+        iperf.body.addWidget(btn)
         root.addWidget(iperf)
 
+        console_card = Card()
+        console_card.body.addWidget(SectionTitle("控制台"))
         self.console = QTextEdit()
         self.console.setReadOnly(True)
-        root.addWidget(self.console)
+        console_card.body.addWidget(self.console, 1)
+        root.addWidget(console_card, 1)
 
         self._log(f"iperf3 内置二进制：{find_iperf3() or '未找到（将使用系统 PATH 或提示安装）'}")
 
