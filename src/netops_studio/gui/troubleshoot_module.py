@@ -40,6 +40,7 @@ class TroubleshootJob(JobBase):
 
     # -- 实时采集 --
     def _run_arp(self) -> None:
+        """采集并分析 ARP 表，输出 IP 冲突（若有）否则展示 ARP 条目。"""
         data = troubleshoot.collect_and_analyze(self.device, self.creds, self.vendor)
         conflicts = data["ip_conflicts"]
         if conflicts:
@@ -58,6 +59,7 @@ class TroubleshootJob(JobBase):
         })
 
     def _run_stp(self) -> None:
+        """采集并分析 STP，输出异常（若有）否则展示根桥/阻塞端口。"""
         data = troubleshoot.collect_and_analyze(self.device, self.creds, self.vendor)
         anomalies = data["stp_anomalies"]
         if anomalies:
@@ -77,6 +79,7 @@ class TroubleshootJob(JobBase):
         })
 
     def _run_dhcp(self) -> None:
+        """采集并分析 DHCP，输出地址池冲突（若有）否则展示各地址池。"""
         data = troubleshoot.collect_dhcp(self.device, self.creds, self.vendor)
         conflicts = data["dhcp_conflicts"]
         if conflicts:
@@ -97,6 +100,7 @@ class TroubleshootJob(JobBase):
 
     # -- 粘贴输出直接分析（无需连接设备）--
     def _run_paste(self) -> None:
+        """解析粘贴的 show/display 输出（arp/stp/dhcp），无需连接设备。"""
         t = self.paste_type
         raw = self.paste_text
         if t == "arp":
@@ -130,6 +134,13 @@ class TroubleshootJob(JobBase):
 
 
 class TroubleshootModule(QWidget):
+    """专项排障模块（对应 core/troubleshoot.py）。
+
+    支持三类实时采集分析（IP 冲突/STP 环路/DHCP 检查，需连接设备）以及
+    「粘贴输出分析」（无需连设备，解析 show/display 文本）。任务经 AsyncWorker
+    后台执行，结果以动态列数的表格 + 原始文本区展示。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.worker = AsyncWorker()
@@ -199,6 +210,7 @@ class TroubleshootModule(QWidget):
 
     # ------------------------------------------------------------------
     def _creds(self) -> dict:
+        """从表单组装连接凭据字典（含 enable 密文 secret）。"""
         return {
             "host": self.address.text().strip(),
             "username": self.user.text().strip(),
@@ -208,6 +220,7 @@ class TroubleshootModule(QWidget):
         }
 
     def _run_op(self, op: str) -> None:
+        """提交排障任务；粘贴分析型操作仍走同一 Job（run_job 内分支决定行为）。"""
         self.table.setRowCount(0)
         self.raw.clear()
         self.progress.setText("正在连接设备并采集…")
@@ -226,13 +239,16 @@ class TroubleshootModule(QWidget):
         )
 
     def _prog(self, done: int, total: int) -> None:
+        """进度回调：更新状态标签。"""
         self.progress.setText(f"进度 {done}/{total}")
 
     def _err(self, msg: str) -> None:
+        """错误回调：标记错误并展示异常文本。"""
         self.progress.setText(f"错误：{msg}")
         self.raw.setPlainText(msg)
 
     def _show(self, result: dict) -> None:
+        """结果回调：按返回的列定义与行数据动态渲染表格 + 原始文本。"""
         self.progress.setText(result.get("summary", "完成"))
         self.raw.setPlainText(result.get("raw", ""))
         cols = result.get("columns", [])

@@ -38,6 +38,11 @@ class MonitorJob(JobBase):
         self.interval = interval
 
     def run_job(self) -> None:
+        """SNMP 轮询主循环：单次模式只跑一轮，持续模式按 interval 周期轮询。
+
+        周期内用 ``should_stop()`` 轮询取消标志以实现协作式退出；出错时单次模式
+        直接返回，持续模式跳过错过的周期避免刷屏。
+        """
         loop = 0
         while not self.should_stop():
             try:
@@ -67,6 +72,14 @@ class MonitorJob(JobBase):
 
 
 class MonitorModule(QWidget):
+    """监控与告警模块（对应 core/monitor.py）。
+
+    提供 SNMP 轮询（单次/持续）与阈值评估、Syslog 实时接收两类能力。SNMP 轮询
+    经 AsyncWorker 后台执行，持续模式通过 ``should_stop()`` 协作式取消；结果以
+    状态着色表格展示。Syslog 接收由 core 的 SyslogReceiver 在独立线程推送消息，
+    经 ``_on_syslog`` 渲染到列表（上限 500 条防止无限增长）。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.worker = AsyncWorker()
@@ -152,9 +165,11 @@ class MonitorModule(QWidget):
 
     # -- SNMP 操作 --
     def _version_int(self):
+        """将版本下拉文本映射为 core 期望的整型版本号（1 / 2）。"""
         return 1 if self.version.currentText() == "1" else 2
 
     def _poll_once(self) -> None:
+        """提交单次 SNMP 轮询任务（先取消可能进行中的任务）。"""
         self.worker.cancel()
         self.table.setRowCount(0)
         job = MonitorJob(
@@ -164,6 +179,7 @@ class MonitorModule(QWidget):
         self.worker.submit(job, on_result=self._on_result, on_error=self._on_error)
 
     def _poll_cont(self) -> None:
+        """提交持续 SNMP 轮询任务（先取消可能进行中的任务）。"""
         self.worker.cancel()
         self.table.setRowCount(0)
         job = MonitorJob(
@@ -173,10 +189,12 @@ class MonitorModule(QWidget):
         self.worker.submit(job, on_result=self._on_result, on_error=self._on_error)
 
     def _stop(self) -> None:
+        """取消正在进行的轮询任务。"""
         self.worker.cancel()
         self.progress.setText("已停止")
 
     def _apply_threshold(self) -> None:
+        """构建阈值规则并应用到后续轮询结果的状态评估。"""
         try:
             value = float(self.thr_value.text())
         except ValueError:
@@ -191,6 +209,7 @@ class MonitorModule(QWidget):
         self.progress.setText(f"阈值已应用: {self._rule.op} {value} -> {self._rule.severity}")
 
     def _on_result(self, payload: dict) -> None:
+        """结果回调：渲染轮询指标，按阈值规则着色状态单元格。"""
         results = payload.get("results", [])
         self.table.setRowCount(len(results))
         self.progress.setText(
@@ -208,9 +227,11 @@ class MonitorModule(QWidget):
             self.table.setItem(i, 2, cell)
 
     def _on_error(self, msg: str) -> None:
+        """错误回调：在状态标签展示异常。"""
         self.progress.setText(f"错误: {msg}")
 
     def _status_for(self, value: str) -> str:
+        """根据阈值规则评估指标状态（ok/warn/crit）；无规则时一律 ok。"""
         if self._rule is None:
             return "ok"
         try:
@@ -221,6 +242,7 @@ class MonitorModule(QWidget):
 
     # -- Syslog --
     def _toggle_syslog(self, state: int) -> None:
+        """开启/关闭 Syslog 接收线程（端口无效或启动失败则回退勾选状态）。"""
         if state == Qt.Checked:
             try:
                 port = int(self.syslog_port.text())
@@ -243,6 +265,7 @@ class MonitorModule(QWidget):
             self.progress.setText("Syslog 已关闭")
 
     def _on_syslog(self, parsed: dict) -> None:
+        """Syslog 消息回调：格式化为列表项，按严重度着色并限制最大长度。"""
         fac = parsed.get("facility")
         sev = parsed.get("severity")
         line = f"[{parsed.get('ts')}] {parsed.get('host')} pri=<{fac},{sev}> {parsed.get('msg')}"
@@ -257,6 +280,7 @@ class MonitorModule(QWidget):
             self.syslog_list.takeItem(0)
 
     def closeEvent(self, event) -> None:  # noqa: N802
+        """窗口关闭时停止 Syslog 接收线程，释放端口。"""
         if self._syslog:
             self._syslog.stop()
         super().closeEvent(event)

@@ -35,6 +35,11 @@ def calculate(cidr: str) -> SubnetResult:
 
     Returns:
         SubnetResult
+
+    说明：
+        - 采用 strict=False 的宽松解析，会将主机位地址自动归整到网络地址。
+        - hostmask 与 netmask 互为按位取反；usable 对 IPv4 取「地址数 - 2」
+          （去掉网络号与广播地址），对 IPv6 该语义不严谨但结果巨大、无实际影响。
     """
     cidr = (cidr or "").strip()
     if not cidr:
@@ -45,6 +50,7 @@ def calculate(cidr: str) -> SubnetResult:
         network=str(net.network_address),
         broadcast=str(net.broadcast_address) if net.version == 4 else "N/A",
         netmask=str(net.netmask),
+        # hostmask 即通配符掩码，是 netmask 的按位取反
         wildcard=str(net.hostmask),
         prefixlen=net.prefixlen,
         host_count=int(net.num_addresses),
@@ -74,12 +80,20 @@ def ip_in_network(ip: str, cidr: str) -> bool:
 
 
 def wildcard_to_mask(wildcard: str) -> str:
-    """通配符掩码转子网掩码字符串。"""
+    """通配符掩码 -> 子网掩码字符串（仅支持 IPv4）。
+
+    实现思路：通配符掩码中的 1 代表「主机位」，其个数 = 32 - 前缀长度，
+    故前缀长度 = 32 - 通配符中 1 的个数。先构造 0.0.0.0/前缀 再取其 netmask。
+
+    注意：本函数与 toolbox.wildcard_to_mask 功能重复，但后者同时支持 IPv4/IPv6，
+    建议后续统一复用 toolbox 版本、本实现可标记为待清理。
+    """
     net = ipaddress.ip_network(f"0.0.0.0/{32 - _wildcard_prefix(wildcard)}", strict=False)
     return str(net.netmask)
 
 
 def _wildcard_prefix(wildcard: str) -> int:
+    """统计通配符掩码中 1 的个数（即主机位数量）。"""
     addr = ipaddress.ip_address(wildcard.strip())
     bits = 0
     for b in addr.packed:

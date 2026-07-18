@@ -44,6 +44,13 @@ class ReportJob(JobBase):
 
 
 class ReportModule(QWidget):
+    """报表自动化模块（对应 core/report.py）。
+
+    勾选要纳入报表的巡检 section，设置 cron 风格调度表达式后「生成」，
+    后台经 AsyncWorker 聚合数据并渲染 HTML/Markdown 预览，最终可导出为
+    HTML/PDF/Word/Excel。生成完成会 publish ``report.generated`` 事件。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.worker = AsyncWorker()
@@ -114,9 +121,11 @@ class ReportModule(QWidget):
 
     # ------------------------------------------------------------------ #
     def _selected_sections(self) -> list:
+        """返回当前勾选的 section 名称列表。"""
         return [s for s, cb in self.section_boxes.items() if cb.isChecked()]
 
     def _refresh_schedule(self) -> None:
+        """解析调度表达式并刷新「下次运行」提示；解析失败则回显错误。"""
         try:
             info = report_core.parse_schedule(self.sched_edit.text())
             self.sched_hint.setText(f"下次运行：{info['next_run']}（{info['summary']}）")
@@ -124,6 +133,7 @@ class ReportModule(QWidget):
             self.sched_hint.setText(f"调度解析失败：{exc}")
 
     def _generate(self) -> None:
+        """校验勾选与调度表达式后提交报表聚合任务到后台线程。"""
         sections = self._selected_sections()
         if not sections:
             self.status.setText("请至少勾选一个 section")
@@ -140,6 +150,7 @@ class ReportModule(QWidget):
         self.worker.submit(job, on_result=self._on_result, on_error=self._on_error)
 
     def _on_result(self, data: Dict[str, Any]) -> None:
+        """结果回调：缓存数据并渲染预览（HTML/PDF 看 HTML，否则 Markdown）。"""
         self._report_data = data
         self._rendered_html = report_core.render_html(data)
         self._rendered_md = report_core.render_markdown(data)
@@ -154,9 +165,11 @@ class ReportModule(QWidget):
         bus.publish("report.generated", data)
 
     def _on_error(self, msg: str) -> None:
+        """错误回调：在状态标签展示报表生成异常。"""
         self.status.setText(f"生成失败：{msg}")
 
     def _export(self) -> None:
+        """将已生成的报告按所选格式导出到文件（HTML/PDF/Word/Excel）。"""
         if not self._report_data:
             self.status.setText("请先生成报告")
             return

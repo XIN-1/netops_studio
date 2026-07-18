@@ -21,6 +21,7 @@ def mask_to_wildcard(mask: str) -> str:
     """子网掩码 -> 通配符掩码（按位取反）。支持 IPv4 / IPv6。"""
     addr = ipaddress.ip_address(mask.strip())
     width = addr.max_prefixlen
+    # 取反后再用低 width 位掩码截掉高位（Python 的 int 取反为无限长负数）
     wildcard_int = (~int(addr)) & ((1 << width) - 1)
     return str(ipaddress.ip_address(wildcard_int))
 
@@ -97,7 +98,7 @@ def gen_password(
     while len(chars) < length:
         chars.append(secrets.choice(all_chars))
 
-    # Fisher-Yates 洗牌（基于 CSPRNG）
+    # Fisher-Yates 洗牌（基于 CSPRNG），保证每类字符均已出现且位置随机
     for i in range(len(chars) - 1, 0, -1):
         j = secrets.randbelow(i + 1)
         chars[i], chars[j] = chars[j], chars[i]
@@ -148,7 +149,8 @@ _RATE_UNITS: Dict[str, float] = {
 def unit_convert(value: float, from_unit: str, to_unit: str) -> float:
     """数据单位或速率单位之间换算（均基于 1000 系，KiB 等为 1024 系）。
 
-    数据单位与速率单位不可互相转换，否则抛 ValueError。
+    数据单位与速率单位不可互相转换，否则抛 ValueError。换算统一先回到
+    基准量（字节 / bit/s）再换算到目标单位，避免多个换算系数相互耦合。
     """
     fu = (from_unit or "").strip()
     tu = (to_unit or "").strip()

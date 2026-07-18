@@ -72,6 +72,9 @@ def build_app():
 
 
 # ---- 后台线程的服务状态（模块级，支撑 start/stop/is_running）----
+# 注意：该状态为模块级全局，start/stop 的读写未加锁。GUI 层通常为单线程触发，
+# 但若在多线程下并发调用 start_api，存在竞态（可能启动多个 uvicorn 实例）。
+# TODO（审计）：建议以 threading.Lock 保护 _API_STATE 的读写。
 _API_STATE: Dict[str, Any] = {"server": None, "thread": None, "host": None, "port": None}
 
 
@@ -132,7 +135,7 @@ def is_api_running() -> bool:
 # 2. CSV / JSON 转换（纯函数，不依赖 fastapi / 网络）
 # ==========================================================================
 def _device_to_dict(d: Any) -> Dict[str, Any]:
-    """统一把 Host / dict 转成字段字典。"""
+    """统一把 Host / dict 转成仅含 HOST_FIELDS 字段的字典（缺失字段补空串）。"""
     if isinstance(d, dict):
         return {k: d.get(k, "") for k in HOST_FIELDS}
     return {k: getattr(d, k, "") for k in HOST_FIELDS}

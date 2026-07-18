@@ -35,6 +35,13 @@ class FlowImportJob(JobBase):
 
 
 class FlowModule(QWidget):
+    """流量深度分析模块（对应 core/flow.py）。
+
+    导入 flow 记录文件后在后台线程解析、检测单流突增异常，并渲染三类视图：
+    Top Talkers（流量最大端点）、应用占比、异常列表。阈值由 QDoubleSpinBox
+    控制。导入过程经 AsyncWorker 后台执行并支持 ``worker.cancel`` 协作式取消。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.worker = AsyncWorker()
@@ -97,6 +104,7 @@ class FlowModule(QWidget):
 
     # ------------------------------------------------------------------
     def _browse(self) -> None:
+        """打开文件选择对话框，将选中的 flow 文件路径写入输入框。"""
         path, _ = QFileDialog.getOpenFileName(
             self, "选择 flow 文件", "",
             "Flow Files (*.json *.csv);;JSON (*.json);;CSV (*.csv);;All (*)",
@@ -105,6 +113,7 @@ class FlowModule(QWidget):
             self.path_edit.setText(path)
 
     def _import(self) -> None:
+        """校验路径后清空视图并提交导入/分析任务到后台线程。"""
         path = self.path_edit.text().strip()
         if not path:
             self.status.setText("请先选择文件")
@@ -117,9 +126,11 @@ class FlowModule(QWidget):
         self.worker.submit(job, on_result=self._show, on_error=self._on_error)
 
     def _on_error(self, msg: str) -> None:
+        """错误回调：在状态标签展示后台任务抛出的异常信息。"""
         self.status.setText(f"错误：{msg}")
 
     def _show(self, res: dict) -> None:
+        """结果回调：缓存记录并渲染 Top Talkers / 应用占比 / 异常三块视图。"""
         self._records = res.get("records", [])
         self.status.setText(f"完成：共 {len(self._records)} 条记录")
         self._render_talkers(flow.top_talkers(self._records, n=20))
@@ -128,6 +139,7 @@ class FlowModule(QWidget):
 
     # ------------------------------------------------------------------
     def _render_talkers(self, talkers) -> None:
+        """渲染 Top Talkers 表（序号 / 端到端 / 字节数）。"""
         self.talkers_tbl.setRowCount(len(talkers))
         for i, r in enumerate(talkers):
             self.talkers_tbl.setItem(i, 0, QTableWidgetItem(str(i + 1)))
@@ -136,6 +148,7 @@ class FlowModule(QWidget):
         self.talkers_tbl.resizeColumnsToContents()
 
     def _render_share(self, share: dict) -> None:
+        """渲染应用占比表（应用 / 字节数 / 百分比）。"""
         total = sum(share.values()) or 1
         self.share_tbl.setRowCount(len(share))
         for i, (app, b) in enumerate(share.items()):
@@ -145,6 +158,7 @@ class FlowModule(QWidget):
         self.share_tbl.resizeColumnsToContents()
 
     def _render_anomalies(self, anomalies: list) -> None:
+        """渲染异常列表；无异常时给出占位提示。异常为 dict（含 type/detail）。"""
         self.anomaly_list.clear()
         if not anomalies:
             self.anomaly_list.addItem("未发现异常")

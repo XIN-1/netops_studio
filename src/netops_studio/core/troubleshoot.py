@@ -67,6 +67,7 @@ def _norm_mac(mac: str) -> str:
 
 
 def _ip_to_int(ip: str) -> int:
+    """将点分十进制 IPv4 转为 32 位整数（便于地址范围比较 / 重叠计算）。"""
     parts = [int(x) for x in ip.split(".")]
     return (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]
 
@@ -141,7 +142,7 @@ def _parse_arp_line(vendor: str, line: str) -> Optional[Dict[str, str]]:
 
 
 def detect_ip_conflict(arp_entries: List[Dict[str, str]]) -> List[Dict[str, object]]:
-    """检测 IP 冲突：同一 IP 关联了 >1 个不同 MAC。
+    """检测 IP 冲突：同一 IP 关联了 >1 个不同 MAC（跨格式归一化后比较）。
 
     返回 [{"ip", "macs":[...], "interfaces":[...]}]。
     """
@@ -154,6 +155,7 @@ def detect_ip_conflict(arp_entries: List[Dict[str, str]]) -> List[Dict[str, obje
         macs: List[str] = []
         interfaces: List[str] = []
         for e in entries:
+            # 用归一化 MAC 去重，避免 "aa:bb:cc" 与 "aabbcc" 被视为不同 MAC
             nm = _norm_mac(e.get("mac", ""))
             if nm and nm not in [_norm_mac(x) for x in macs]:
                 macs.append(e.get("mac", ""))

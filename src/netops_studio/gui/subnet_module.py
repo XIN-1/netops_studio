@@ -11,6 +11,13 @@ from .widgets import Card, GhostButton, PrimaryButton, SectionTitle
 
 
 class SubnetModule(QWidget):
+    """子网计算与拆分模块。
+
+    对应 core/subnet.py：``calculate()`` 解析单个 CIDR 返回网络信息对象，
+    ``subnet_split()`` 按新前缀长度拆分为多个子网。UI 仅负责输入采集与结果
+    渲染，所有计算在调用线程同步完成（计算量小，无需异步）。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         root = QVBoxLayout(self)
@@ -54,6 +61,7 @@ class SubnetModule(QWidget):
         root.addWidget(out_card, 1)
 
     def _calc(self) -> None:
+        """调用 core.subnet.calculate 解析 CIDR，并将网络信息格式化输出到结果框。"""
         try:
             r = calculate(self.cidr.text())
             lines = [
@@ -71,6 +79,7 @@ class SubnetModule(QWidget):
             self.out.setPlainText(f"错误：{exc}")
 
     def _split(self) -> None:
+        """调用 core.subnet.subnet_split 将原网段拆分为 /26 子网并列出可用数。"""
         try:
             subs = subnet_split(self.cidr.text(), 26)
             self.out.setPlainText("\n".join(f"{s.network}/{s.prefixlen}  ({s.usable} 可用)" for s in subs))

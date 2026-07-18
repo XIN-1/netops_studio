@@ -106,6 +106,11 @@ class Iperf3Client:
 
     @staticmethod
     def _parse(stdout: str, direction: str) -> SpeedResult:
+        """解析 iperf3 的 -J JSON 输出为 SpeedResult。
+
+        download 取 sum_received、upload 取 sum_sent 的 bits_per_second；
+        UDP 额外取 sum 中的抖动与丢包率。解析失败返回 success=False 的占位结果。
+        """
         import json
 
         try:
@@ -152,7 +157,7 @@ class ExternalTester:
             result.loss_percent = pr.loss_percent
         except Exception:  # noqa: BLE001
             result.latency_ms = 0.0
-        # 下载吞吐
+        # 下载吞吐：边流式下载边累加字节，到达 download_secs 即停止采样（而非下完整个文件）
         try:
             start = time.time()
             dl_bytes = 0
@@ -161,6 +166,7 @@ class ExternalTester:
                     dl_bytes += len(chunk)
                     if time.time() - start >= download_secs:
                         break
+            # 速率 = 字节 * 8 / 1e6 / 秒，下界 0.001 秒避免除零
             el = max(time.time() - start, 0.001)
             result.download_mbps = round((dl_bytes * 8) / 1_000_000 / el, 2)
             result.success = True

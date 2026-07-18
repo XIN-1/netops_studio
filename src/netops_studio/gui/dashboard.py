@@ -17,6 +17,16 @@ from .widgets import Card, ScrollBox, SectionTitle, StatCard
 
 
 class Dashboard(QWidget):
+    """网络态势总览面板。
+
+    本地聚合来自事件总线（bus）的事件：
+      - ``discovery.host``：新发现主机，累加在线数并刷新平均延迟
+      - ``speedtest.result``：测速结果，更新吞吐量
+      - ``alert``：告警事件，累加告警计数
+    并渲染指标卡与近期设备列表。所有数据均为本面板内部状态，
+    由各订阅回调在事件到达时增量更新后统一调用 ``_refresh`` 重绘。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.online_count = 0
@@ -61,12 +71,13 @@ class Dashboard(QWidget):
         dev_card.body.addWidget(self.device_list, 1)
         root.addWidget(dev_card, 1)
 
-        # 订阅事件总线
+        # 订阅事件总线：事件由 discovery/speed_test/告警模块 publish，本面板被动聚合
         bus.subscribe("discovery.host", self._on_host)
         bus.subscribe("speedtest.result", self._on_speed)
         bus.subscribe("alert", self._on_alert)
 
     def _on_host(self, host) -> None:
+        """处理 ``discovery.host`` 事件：累加在线设备并刷新平均延迟。"""
         self.online_count += 1
         if host is not None and getattr(host, "latency_ms", None):
             self.avg_latency = round(
@@ -78,15 +89,18 @@ class Dashboard(QWidget):
         self._refresh()
 
     def _on_speed(self, result) -> None:
+        """处理 ``speedtest.result`` 事件：提取成功测速的带宽作为吞吐量。"""
         if result is not None and getattr(result, "success", False):
             self.last_throughput = getattr(result, "bandwidth_mbps", 0.0)
         self._refresh()
 
     def _on_alert(self, payload) -> None:
+        """处理 ``alert`` 事件：累加告警计数。"""
         self.alerts += 1
         self._refresh()
 
     def _refresh(self) -> None:
+        """重绘四张指标卡；在所有订阅回调末尾统一调用，避免重复刷新。"""
         self.cards["online"].set_value(f"{self.online_count} 台")
         self.cards["latency"].set_value(f"{self.avg_latency if self.avg_latency else '—'} ms")
         self.cards["throughput"].set_value(f"{self.last_throughput} Mbps")

@@ -44,6 +44,13 @@ class SecurityJob(JobBase):
 
 
 class SecurityModule(QWidget):
+    """安全管理模块（对应 core/security.py）。
+
+    提供五类安全检查：端口审计、弱口令检查、证书过期检查、CVE 查询、防火墙规则审计。
+    任务经 AsyncWorker 后台执行，结果按类型自适应渲染到统一表格与原始文本区。
+    通过 ``sender().text()`` 区分点击了哪个按钮以决定操作。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.worker = AsyncWorker()
@@ -104,6 +111,7 @@ class SecurityModule(QWidget):
 
     # ------------------------------------------------------------------
     def _run(self) -> None:
+        """根据触发按钮的文字决定操作，采集对应参数并提交后台任务。"""
         sender = self.sender()
         op = sender.text() if sender is not None else ""
         self.table.setRowCount(0)
@@ -129,11 +137,13 @@ class SecurityModule(QWidget):
         self.worker.submit(job, on_result=self._show, on_error=self._err)
 
     def _err(self, msg: str) -> None:
+        """错误回调：标记出错并展示异常信息。"""
         self.progress.setText("出错")
         self.raw.setPlainText(msg)
 
     # ------------------------------------------------------------------
     def _show(self, payload) -> None:
+        """结果分发：解包 (op, res) 并委派给对应的渲染方法。"""
         op, res = payload
         self.progress.setText(f"完成：{op}")
         self.raw.clear()
@@ -150,6 +160,7 @@ class SecurityModule(QWidget):
             self._show_fw(res)
 
     def _set_rows(self, rows) -> None:
+        """以「字段/值」双列表渲染一组键值对。"""
         self.table.setColumnCount(2)
         self.table.setHorizontalHeaderLabels(["字段", "值"])
         self.table.setRowCount(len(rows))
@@ -158,6 +169,7 @@ class SecurityModule(QWidget):
             self.table.setItem(i, 1, QTableWidgetItem(str(v)))
 
     def _show_port_audit(self, res) -> None:
+        """渲染端口审计结果（端口/状态/服务 + 汇总文本）。"""
         self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels(["端口", "状态", "服务"])
         self.table.setRowCount(len(res.results))
@@ -171,6 +183,7 @@ class SecurityModule(QWidget):
         )
 
     def _show_pw(self, res) -> None:
+        """渲染弱口令检查结果（评分/是否弱口令/问题项，res 为 dict）。"""
         self._set_rows([
             ("强度评分", f"{res['score']} / 100"),
             ("是否弱口令", "是" if res["score"] == 0 and res["issues"] else "否"),
@@ -178,6 +191,7 @@ class SecurityModule(QWidget):
         ])
 
     def _show_cert(self, res) -> None:
+        """渲染证书检查结果（类型/到期/剩余天数/状态）。"""
         self._set_rows([
             ("证书类型", res.type),
             ("到期时间", res.not_after.strftime("%Y-%m-%d %H:%M:%S %Z")),
@@ -186,6 +200,7 @@ class SecurityModule(QWidget):
         ])
 
     def _show_cve(self, res) -> None:
+        """渲染 CVE 查询结果（表格 + 文本）；无结果时给出提示。"""
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(["CVE", "产品", "严重度", "摘要"])
         self.table.setRowCount(len(res))
@@ -204,6 +219,7 @@ class SecurityModule(QWidget):
         ))
 
     def _show_fw(self, res) -> None:
+        """渲染防火墙审计结果（统计指标 + 违规明细）。"""
         self._set_rows([
             ("规则总数", res.total),
             ("违规项数", len(res.violations)),

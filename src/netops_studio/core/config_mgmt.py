@@ -42,6 +42,8 @@ def _fernet(key: bytes):
 
     if len(key) != 32:
         raise ValueError("密钥必须为 32 字节（os.urandom(32) 生成）")
+    # Fernet 要求密钥为 urlsafe-base64 编码的 32 字节（44 字符），
+    # 这里把裸 32 字节密钥重新编码后喂给 Fernet。
     return Fernet(base64.urlsafe_b64encode(key))
 
 

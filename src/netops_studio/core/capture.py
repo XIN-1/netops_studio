@@ -64,7 +64,10 @@ def find_tshark(pkg_root: Optional[str] = None) -> str:
 
 
 def _run(cmd: List[str], timeout: int = 120) -> str:
-    """运行子进程并返回合并后的 stdout+stderr 文本。"""
+    """运行子进程并返回合并后的 stdout+stderr 文本。
+
+    超时时返回空串（由上层解析函数优雅降级为空结果），不向上抛异常。
+    """
     try:
         out = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
@@ -198,7 +201,8 @@ def detect_anomalies(
     if not records:
         return anomalies
 
-    # 单 IP 字节占比
+    # 单 IP 字节占比：将每个会话的字节数按端点（src 与 dst）双向累加，
+    # 再计算该 IP 占全部流量的比例（total_bytes==0 时跳过，避免除零）。
     total_bytes = sum(int(r.get("bytes", 0) or 0) for r in records)
     if total_bytes > 0:
         per_ip: Dict[str, int] = {}

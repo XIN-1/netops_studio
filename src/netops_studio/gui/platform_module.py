@@ -31,6 +31,14 @@ _SAMPLE_USERS = [
 
 
 class PlatformModule(QWidget):
+    """平台与权限模块（对应 core/rbac.py）。
+
+    聚合用户/角色权限检查、命令面板（基于 ACTIONS 过滤）、审计日志查看、插件列
+    表、自定义仪表盘 KPI 配置，以及主题/语言切换（调用 app.theme / app.i18n）。
+    所有操作均经 AuditLog 留痕。注意：本模块直接使用 Qt 控件，未走 widgets 复
+    用组件。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         # 主题对象：优先复用容器中的全局 Theme，否则自建一个本地实例
@@ -48,6 +56,7 @@ class PlatformModule(QWidget):
     # UI 构建
     # ======================================================================
     def _build_ui(self) -> None:
+        """构建顶层布局：主题/语言切换条 + 五个功能 Tab。"""
         root = QVBoxLayout(self)
 
         # ---- 顶部条：主题 / 语言切换 ----
@@ -75,6 +84,7 @@ class PlatformModule(QWidget):
 
     # ---- 用户与权限 ----
     def _build_rbac_tab(self) -> QWidget:
+        """构建「用户与权限」Tab：用户表 + 权限检查表单。"""
         w = QWidget()
         lay = QVBoxLayout(w)
 
@@ -110,6 +120,7 @@ class PlatformModule(QWidget):
 
     # ---- 命令面板 ----
     def _build_command_tab(self) -> QWidget:
+        """构建「命令面板」Tab：关键字过滤 ACTIONS 并支持双击触发。"""
         w = QWidget()
         lay = QVBoxLayout(w)
         lay.addWidget(QLabel("命令面板（输入关键字过滤动作）"))
@@ -130,6 +141,7 @@ class PlatformModule(QWidget):
 
     # ---- 审计日志 ----
     def _build_audit_tab(self) -> QWidget:
+        """构建「审计日志」Tab：搜索框 + 日志列表。"""
         w = QWidget()
         lay = QVBoxLayout(w)
         head = QHBoxLayout()
@@ -149,6 +161,7 @@ class PlatformModule(QWidget):
 
     # ---- 插件 ----
     def _build_plugin_tab(self) -> QWidget:
+        """构建「插件」Tab：插件列表 + 重新扫描按钮。"""
         w = QWidget()
         lay = QVBoxLayout(w)
         head = QHBoxLayout()
@@ -165,6 +178,7 @@ class PlatformModule(QWidget):
 
     # ---- 仪表盘配置 ----
     def _build_dashboard_tab(self) -> QWidget:
+        """构建「仪表盘配置」Tab：KPI 勾选项 + 保存/重载按钮。"""
         w = QWidget()
         lay = QVBoxLayout(w)
         lay.addWidget(QLabel("自定义仪表盘（选择要显示的 KPI）"))
@@ -191,12 +205,14 @@ class PlatformModule(QWidget):
     # 行为
     # ======================================================================
     def _refresh_users(self) -> None:
+        """渲染内置示例用户表（用户名/角色）。"""
         self.user_table.setRowCount(len(_SAMPLE_USERS))
         for i, u in enumerate(_SAMPLE_USERS):
             self.user_table.setItem(i, 0, QTableWidgetItem(u.name))
             self.user_table.setItem(i, 1, QTableWidgetItem(u.role))
 
     def _check_permission(self) -> None:
+        """检查所选用户对所选动作的权限并着色展示，同时写入审计。"""
         user: User = self.user_combo.currentData()
         action = self.action_combo.currentData() or self.action_combo.currentText().strip()
         ok = rbac.check_permission(user.role, action)
@@ -207,6 +223,7 @@ class PlatformModule(QWidget):
         self.audit.record(user, action, f"权限检查 -> {'允许' if ok else '拒绝'}")
 
     def _filter_actions(self, query: str) -> None:
+        """按关键字过滤命令面板动作列表（用 UserRole 携带动作名）。"""
         self.cmd_list.clear()
         for name in rbac.search_actions(query):
             item = QListWidgetItem(f"{name} — {rbac.ACTIONS[name]}")
@@ -214,11 +231,13 @@ class PlatformModule(QWidget):
             self.cmd_list.addItem(item)
 
     def _run_action(self, item: QListWidgetItem) -> None:
+        """双击命令面板项：触发动作（演示）并记入审计。"""
         action = item.data(Qt.UserRole)
         self.cmd_status.setText(f"已触发：{action}（已记入审计）")
         self.audit.record("operator", action, "命令面板执行（演示）")
 
     def _refresh_audit(self) -> None:
+        """按搜索关键字刷新审计日志列表（最新在上）。"""
         q = self.audit_search.text() if hasattr(self, "audit_search") else ""
         logs = self.audit.search(q)
         self.audit_list.clear()
@@ -227,6 +246,7 @@ class PlatformModule(QWidget):
             self.audit_list.addItem(QListWidgetItem(line))
 
     def _refresh_plugins(self) -> None:
+        """扫描并渲染插件列表；无插件时给出占位提示。"""
         plugins = rbac.scan_plugins()
         self.plugin_list.clear()
         if not plugins:
@@ -237,11 +257,13 @@ class PlatformModule(QWidget):
             self.plugin_list.addItem(QListWidgetItem(line))
 
     def _load_dashboard(self) -> None:
+        """从持久化配置加载仪表盘 KPI 勾选状态。"""
         cfg = DashboardConfig().load()
         for key, cb in self.kpi_checks.items():
             cb.setChecked(bool(cfg.get(key, True)))
 
     def _save_dashboard(self) -> None:
+        """保存当前仪表盘 KPI 勾选状态并留痕。"""
         states = {k: cb.isChecked() for k, cb in self.kpi_checks.items()}
         DashboardConfig().save(states)
         self.status.setText("仪表盘配置已保存")
@@ -249,6 +271,7 @@ class PlatformModule(QWidget):
 
     # ---- 主题 / 语言 ----
     def _toggle_theme(self) -> None:
+        """在 light/dark 间切换主题，并应用全局 QSS。"""
         new_mode = "dark" if self.theme.token.name == "light" else "light"
         self.theme.set_mode(new_mode)
         app = QApplication.instance()
@@ -258,6 +281,7 @@ class PlatformModule(QWidget):
         self.audit.record("operator", "theme.toggle", new_mode)
 
     def _toggle_lang(self) -> None:
+        """在 zh_CN / en_US 间切换语言并刷新本模块可见文案。"""
         cur = i18n().locale
         new_locale = "en_US" if cur == "zh_CN" else "zh_CN"
         set_locale(new_locale)

@@ -48,6 +48,7 @@ def audit_ports(target: str, ports) -> PortAuditResult:
 # --------------------------------------------------------------------------
 # 2. 弱口令检测
 # --------------------------------------------------------------------------
+# 常见弱口令字典（小写归一后比较），用于 check_password_strength / is_weak 命中判断
 COMMON_WEAK = {
     "123456", "12345678", "123456789", "password", "passw0rd", "qwerty",
     "abc123", "111111", "123123", "000000", "admin", "root", "toor",
@@ -199,12 +200,14 @@ def audit_firewall(config_text: str) -> FirewallAuditResult:
 
     for idx, raw_line in enumerate(config_text.splitlines(), start=1):
         line = raw_line.strip()
+        # 跳过空行与注释行（! 为 Cisco 风格，# 为通用风格）
         if not line or line.startswith("!") or line.startswith("#"):
             continue
         total += 1
         low = line.lower()
 
         # 过宽放行：permit ip any any / permit tcp any any ...
+        # 判定依据：含 permit、且 any 出现 >=2 次（源+目的各一）、且动作含 ip/tcp/udp。
         if "permit" in low and "any" in low:
             # 统计 any 出现次数（通常源+目的各一个）
             if low.count("any") >= 2 and ("ip" in low or "tcp" in low or "udp" in low or "any any" in low):

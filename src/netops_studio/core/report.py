@@ -74,6 +74,8 @@ def parse_schedule(spec: str) -> Dict[str, Any]:
     h = _to_int(hour, 0, 23, "hour")
 
     now = datetime.now().replace(second=0, microsecond=0)
+    # 注：本解析为「简化 cron」，仅依据 minute/hour 求最近一次执行时间，
+    # 故意忽略 day/month/weekday 字段（不实现完整 cron 调度语义）。
     if h is not None and m is not None:
         candidate = now.replace(hour=h, minute=m)
         if candidate <= now:
@@ -329,6 +331,9 @@ def export_pdf(html: str, path: str) -> str:
     flow: List[Any] = []
 
     pos = 0
+    # 注意：此正则仅匹配无属性的 <table> 标签，而 render_html 实际输出为
+    # <table border='1' ...>。若后续未在此处放宽正则，PDF 中的表格将被整体跳过，
+    # 仅保留文字块（审计项，见汇报）。
     for m in re.finditer(r"<table>.*?</table>", html, re.S):
         _append_text_blocks(flow, html[pos:m.start()], styles)
         rows: List[List[str]] = []

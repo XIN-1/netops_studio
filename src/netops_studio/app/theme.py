@@ -3,7 +3,17 @@
 light/dark 设计 token + 现代 QSS 渲染。纯 Python（仅拼装 QSS 字符串，不实例化 Qt 对象）。
 设计语言：扁平化工作台风格 —— 圆角卡片、克制的层次、统一的间距与强调色、深浅双主题。
 
-参考文档 §7。
+对应开发文档 §7。
+
+QSS 选择器约定（各模块需遵循，方能套用样式）：
+- 容器/外壳用 objectName 锚定：QWidget#Sidebar（左侧栏外壳）、
+  QListWidget#NavList（侧边导航列表）。
+- 语义化「角色」用 property 锚定（在代码里 setProperty("role", ...)）：
+  QLabel[role="title"|"subtitle"|"section"|"muted"|"metric"] 用于不同层级文字；
+  QFrame[role="card"|"card-accent"] 用于卡片容器；
+  QPushButton[role="ghost"|"danger"] 用于次级/危险按钮。
+- 导航项的「阶段小标题」复用 NavList::item:disabled 样式（禁用态被刻意用作分组标题），
+  因此分组标题项需 setFlags(~ItemIsEnabled)。
 """
 
 from __future__ import annotations
@@ -53,16 +63,24 @@ DARK = ThemeToken(
 
 
 class Theme:
+    """双主题管理：持有当前 ThemeToken 并据此拼装全局 QSS 字符串。"""
+
     def __init__(self, mode: str = "light") -> None:
+        # mode 非 "light" 即视为 dark（容错默认）。LIGHT/DARK 为模块级单例 token。
         self.token = LIGHT if mode == "light" else DARK
 
     def set_mode(self, mode: str) -> None:
+        # 运行时切换主题：仅替换 token 引用，下次调用 qss() 即得到新主题样式。
         self.token = LIGHT if mode == "light" else DARK
 
     # ------------------------------------------------------------------
     # QSS
     # ------------------------------------------------------------------
     def qss(self) -> str:
+        # 以当前 token 的字段（bg/surface/accent/...）插值生成完整样式表字符串。
+        # 返回结果直接交给 QApplication.setStyleSheet(...) 全局生效（见 MainWindow._apply_theme）。
+        # 注意：此处仅拼装字符串，不创建任何 Qt 对象，故可在任意线程安全调用。
+        t = self.token
         t = self.token
         return f"""
         /* ===== 基础 ===== */

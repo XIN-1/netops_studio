@@ -70,6 +70,11 @@ def convert_base(value: str, src_base: int, dst_base: int) -> str:
 # 哈希
 # --------------------------------------------------------------------------
 def hash_data(text: str, algo: str = "sha256") -> str:
+    """计算文本哈希。
+
+    支持标准 hashlib 算法名（md5/sha1/sha256/sha512 ...）以及特殊别名 "crc32"
+    （返回 8 位十六进制 CRC32，按 0xFFFFFFFF 掩码取 32 位无符号值）。
+    """
     algo = algo.lower()
     if algo == "crc32":
         return format(binascii.crc32(text.encode("utf-8")) & 0xFFFFFFFF, "08x")
@@ -83,6 +88,8 @@ def hash_data(text: str, algo: str = "sha256") -> str:
 # --------------------------------------------------------------------------
 @dataclass
 class JwtParts:
+    """解析后的 JWT 三段内容。"""
+
     header: dict
     payload: dict
     signature: str
@@ -90,6 +97,12 @@ class JwtParts:
 
 
 def jwt_parse(token: str) -> JwtParts:
+    """解析 JWT（不校验签名），返回 header / payload / 原始 signature。
+
+    注：valid_b64 目前恒为 True —— 任意分段若非合法 Base64URL，
+    _b64url_json 会直接抛 ValueError，故该方法不会在 valid_b64=False 的
+    情况下返回。若需「宽容解析并标记非法 base64」，后续应改造 _b64url_json。
+    """
     parts = token.strip().split(".")
     if len(parts) != 3:
         raise ValueError("JWT 应包含 3 段（header.payload.signature）")
@@ -158,15 +171,18 @@ def pem_parse(text: str) -> PemInfo:
 # 字符串 / hex
 # --------------------------------------------------------------------------
 def to_hex(text: str) -> str:
+    """文本 -> 空格分隔的十六进制串（便于人工核对二进制/协议报文）。"""
     return text.encode("utf-8").hex(" ")
 
 
 def from_hex(hexstr: str) -> str:
+    """十六进制串 -> 文本（自动去除空格与换行，解码失败以替换字符兜底）。"""
     cleaned = hexstr.strip().replace(" ", "").replace("\n", "")
     return bytes.fromhex(cleaned).decode("utf-8", errors="replace")
 
 
 def string_stats(text: str) -> dict:
+    """统计字符串：字符长度、UTF-8 字节数、行数、词数（按非空白切分）。"""
     return {
         "length": len(text),
         "bytes": len(text.encode("utf-8")),

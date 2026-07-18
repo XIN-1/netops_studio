@@ -26,6 +26,12 @@ _ACTION_CN = {
 
 
 class AiModule(QWidget):
+    """AI 智能助手模块（对应 core/ai_assist.py）。
+
+    以对话形式接收自然语言问题，调用 ``assist()`` 同步完成意图解析、命令生成、
+    知识库检索与诊断建议，并将结构化结果渲染到消息区。支持多厂商命令风格切换。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         root = QVBoxLayout(self)
@@ -69,6 +75,7 @@ class AiModule(QWidget):
 
     # ------------------------------------------------------------------
     def _print_banner(self) -> None:
+        """打印助手开场白，列出所有支持的动作（来自 ACTIONS）。"""
         self._append(
             "AI",
             "你好，我是 NetOps 智能助手 🤖。可处理："
@@ -78,6 +85,7 @@ class AiModule(QWidget):
         )
 
     def _on_send(self) -> None:
+        """发送消息：调用 assist() 解析并渲染意图/命令/知识库/诊断四段式回复。"""
         q = self.input.text().strip()
         if not q:
             return
@@ -123,7 +131,7 @@ class AiModule(QWidget):
 
     # ------------------------------------------------------------------
     def _append(self, role: str, text: str) -> None:
-        """向消息区追加一条带角色前缀的消息。"""
+        """向消息区追加一条带角色前缀的消息，并滚动到底部。"""
         prefix = "👤 " if role == "你" else "🤖 "
         self.history.append(f"{prefix}{role}：{text}")
         # 滚动到底部

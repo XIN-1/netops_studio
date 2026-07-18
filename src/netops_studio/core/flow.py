@@ -13,7 +13,7 @@ import json
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
-# 1,000,000 字节 = 1 MB（流量统计常用十进制）
+# 1,000,000 字节 = 1 MB（流量统计常用十进制，区别于二进制 MiB=1048576）
 MB = 1_000_000
 
 
@@ -103,7 +103,10 @@ def _to_int(v) -> int:
 
 
 def _to_bytes(v) -> int:
-    """尽量安全转换为字节数（整数）。"""
+    """尽量安全转换为字节数（整数）。
+
+    字符串先去除千分位逗号（如 "1,024"）；无法解析（空串 / None / 非数字）时回退 0。
+    """
     if isinstance(v, str):
         v = v.replace(",", "").strip()
     try:

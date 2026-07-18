@@ -42,6 +42,13 @@ class DiagnosticJob(JobBase):
 
 
 class DiagnosticModule(QWidget):
+    """连通性诊断模块（对应 core/diagnostics.py）。
+
+    支持 Ping/Traceroute/端口扫描/DNS 查询/HTTP 探测五类操作，任务经 AsyncWorker
+    后台执行，进度标签实时更新。结果根据类型自适应渲染：标量指标对象显示为
+    「字段/值」双列表，端口扫描结果则渲染为「端口/状态/服务/错误」四列表。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.worker = AsyncWorker()
@@ -97,15 +104,18 @@ class DiagnosticModule(QWidget):
         root.addWidget(self.raw)
 
     def _run(self) -> None:
+        """清空上一次结果并提交诊断任务到后台线程。"""
         self.table.setRowCount(0)
         self.raw.clear()
         job = DiagnosticJob(self.op.currentText(), self.target.text(), self.ports.text())
         self.worker.submit(job, on_result=self._show, on_progress=self._prog)
 
     def _prog(self, done: int, total: int) -> None:
+        """进度回调：更新「就绪/进度/完成」状态标签。"""
         self.progress.setText(f"进度 {done}/{total}")
 
     def _show(self, res) -> None:
+        """结果回调：标量对象渲染为字段表，端口扫描列表渲染为四列表。"""
         self.progress.setText("完成")
         self.raw.setPlainText(getattr(res, "raw", str(res)))
         rows = []

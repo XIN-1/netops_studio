@@ -20,6 +20,7 @@ from .widgets import Card, PrimaryButton
 
 
 def _result_box() -> QTextEdit:
+    """构造一个只读的结果文本框（带占位提示）。"""
     box = QTextEdit()
     box.setReadOnly(True)
     box.setPlaceholderText("结果将在此显示…")
@@ -27,6 +28,13 @@ def _result_box() -> QTextEdit:
 
 
 class ToolboxModule(QWidget):
+    """工具箱模块（对应 core/toolbox.py，进制/时间戳复用 core/codec.py）。
+
+    以 QTabWidget 聚合多个纯计算小工具（掩码转换、OUI 查询、密码生成、带宽计算、
+    单位换算、WOL 魔术包、进制转换、时间戳转换）。均为同步本地计算，无需后台线程；
+    统一通过 ``_safe`` 包裹执行并把结果或异常写入只读文本框。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         root = QVBoxLayout(self)
@@ -229,6 +237,7 @@ class ToolboxModule(QWidget):
 
     @staticmethod
     def _wol_preview(pkt: bytes) -> str:
+        """将 WOL 魔术包字节序列格式化为「长度 + 空格分隔大写十六进制」。"""
         hexed = pkt.hex(" ").upper()
         return f"长度: {len(pkt)} 字节\n{hexed}"
 
@@ -297,6 +306,7 @@ class ToolboxModule(QWidget):
     # -------------------------------------------------------------- 工具
     @staticmethod
     def _safe(out: QTextEdit, fn) -> None:
+        """安全执行计算回调：成功写结果，异常捕获后写错误文本。"""
         try:
             out.setPlainText(str(fn()))
         except Exception as exc:  # noqa: BLE001

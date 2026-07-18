@@ -113,6 +113,7 @@ def discover_onvif(
     """
     msg = build_probe().encode("utf-8")
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    # 多播 TTL=2：允许跨过一层路由器，覆盖常见同网段与相邻子网发现
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
     if bind_interface:
         try:
@@ -248,13 +249,14 @@ def estimate_mos(loss_percent: float, jitter_ms: float, codec_ie: float = 0.0) -
     jitter_ms = max(0.0, float(jitter_ms))
     codec_ie = max(0.0, float(codec_ie))
 
-    r0 = 93.2                      # 基础信号质量
-    i_loss = 95.0 * (1.0 - math.exp(-loss_percent / 15.0))   # 丢包损伤
-    i_jit = 0.024 * jitter_ms + 0.11 * max(0.0, jitter_ms - 177.3)  # 抖动/延迟损伤
+    r0 = 93.2                      # 基础信号质量（R 值上限约 100）
+    i_loss = 95.0 * (1.0 - math.exp(-loss_percent / 15.0))   # 丢包损伤（饱和指数）
+    # 抖动/延迟损伤：基础项 + 超过 177.3ms 后的强惩罚项（简化 E-model）
+    i_jit = 0.024 * jitter_ms + 0.11 * max(0.0, jitter_ms - 177.3)
     r = r0 - i_loss - i_jit - codec_ie
     r = max(0.0, min(100.0, r))
 
-    # R 值 -> MOS 标准转换公式
+    # R 值 -> MOS 标准转换公式（ITU-T G.107 近似）
     mos = 1.0 + 0.035 * r + r * (r - 60.0) * (100.0 - r) * 7e-6
     return round(mos, 2)
 

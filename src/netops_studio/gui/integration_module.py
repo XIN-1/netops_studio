@@ -22,6 +22,11 @@ from ..core.discovery import Host
 # 后台任务：外部系统连接测试（AsyncWorker + JobBase）
 # --------------------------------------------------------------------------
 class ConnTestJob(JobBase):
+    """外部系统连接测试任务（Zabbix/Prometheus/NetBox）。
+
+    在后台线程构造对应 client 并拉取主机列表，回传数量与前 3 条样本。
+    """
+
     def __init__(self, kind: str, url: str, token: str, user: str = "") -> None:
         super().__init__()
         self.kind = kind
@@ -41,6 +46,13 @@ class ConnTestJob(JobBase):
 
 
 class IntegrationModule(QWidget):
+    """集成与 API 模块（对应 core/integration.py）。
+
+    包含三块能力：(1) 本地 API 服务启停（core 内置后台线程）；
+    (2) 设备库 CSV/JSON 导入导出（本地纯函数）；
+    (3) 外部系统（Zabbix/Prometheus/NetBox）连接测试（AsyncWorker 后台执行）。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.worker = AsyncWorker()
@@ -130,6 +142,7 @@ class IntegrationModule(QWidget):
 
     # ---- API 服务 ----
     def _start_api(self) -> None:
+        """校验端口后启动本地 API 服务并切换按钮状态。"""
         host = self.api_host.text().strip() or "127.0.0.1"
         try:
             port = int(self.api_port.text().strip() or "8000")
@@ -146,6 +159,7 @@ class IntegrationModule(QWidget):
         self.api_stop.setEnabled(True)
 
     def _stop_api(self) -> None:
+        """停止本地 API 服务并恢复按钮状态。"""
         stopped = integration.stop_api()
         self.api_status.setText("状态：已停止" if stopped else "状态：本未运行")
         self.api_start.setEnabled(True)
@@ -153,6 +167,7 @@ class IntegrationModule(QWidget):
 
     # ---- 设备库 ----
     def _render_devices(self) -> None:
+        """将已加载的设备列表渲染到表格（含延迟，None 显示为空白）。"""
         self.dev_table.setRowCount(len(self.devices))
         for i, h in enumerate(self.devices):
             self.dev_table.setItem(i, 0, QTableWidgetItem(h.ip))
@@ -164,6 +179,7 @@ class IntegrationModule(QWidget):
             self.dev_table.setItem(i, 5, QTableWidgetItem(lat))
 
     def _import(self, fmt: str) -> None:
+        """导入设备库文件（csv/json）并预览转换后的文本。"""
         path, _ = QFileDialog.getOpenFileName(
             self, f"导入设备库（{fmt.upper()}）", "",
             "CSV 文件 (*.csv)" if fmt == "csv" else "JSON 文件 (*.json)")
@@ -184,6 +200,7 @@ class IntegrationModule(QWidget):
              if fmt == "csv" else integration.devices_to_json(self.devices)))
 
     def _export(self, fmt: str) -> None:
+        """将当前设备列表导出为 csv/json 文件。"""
         if not self.devices:
             self.dev_raw.setPlainText("无设备可导出")
             return
@@ -204,6 +221,7 @@ class IntegrationModule(QWidget):
 
     # ---- 外部系统连接测试 ----
     def _test_conn(self) -> None:
+        """提交外部系统连接测试任务。"""
         self.ext_status.setText("状态：测试中…")
         job = ConnTestJob(
             self.ext_kind.currentText(),
@@ -214,7 +232,9 @@ class IntegrationModule(QWidget):
         self.worker.submit(job, on_result=self._conn_done, on_error=self._conn_err)
 
     def _conn_done(self, res: dict) -> None:
+        """连接测试成功回调：展示获取到主机数量。"""
         self.ext_status.setText(f"状态：成功，获取 {res['count']} 台主机")
 
     def _conn_err(self, msg: str) -> None:
+        """连接测试失败回调：展示异常信息。"""
         self.ext_status.setText(f"状态：失败 - {msg}")

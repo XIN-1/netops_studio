@@ -14,6 +14,15 @@ from .widgets import Card, GhostButton, PrimaryButton, SectionTitle
 
 
 class DiscoveryJob(JobBase):
+    """发现扫描任务。
+
+    在 AsyncWorker 的后台线程中执行 ``core.discovery.scan_network``，
+    通过 ``on_progress`` 回调把进度转发到 ``signals.progress``，
+    完成后把主机列表通过 ``signals.result`` 上报。JobBase 提供协作式取消：
+    当 ``worker.cancel()`` 被调用时，scan_network 内部应周期性检查取消标志
+    以尽快退出（避免硬杀线程）。
+    """
+
     def __init__(self, cidr: str) -> None:
         super().__init__()
         self.cidr = cidr
@@ -27,6 +36,13 @@ class DiscoveryJob(JobBase):
 
 
 class DiscoveryModule(QWidget):
+    """网段扫描与资产发现模块（对应 core/discovery.py）。
+
+    用户在输入区填入 CIDR 后点击「扫描」，任务经 AsyncWorker 提交到后台线程，
+    进度条实时更新；结果以表格展示，并逐条 publish ``discovery.host`` 事件
+    供仪表盘聚合。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.worker = AsyncWorker()
@@ -56,6 +72,7 @@ class DiscoveryModule(QWidget):
         self.run_btn = PrimaryButton("扫描")
         self.run_btn.clicked.connect(self._run)
         self.stop_btn = GhostButton("停止")
+        # 协作式取消：将「停止」按钮连接到 worker.cancel，由 JobBase 在后台轮询取消标志
         self.stop_btn.clicked.connect(self.worker.cancel)
         btn_row.addWidget(self.run_btn)
         btn_row.addWidget(self.stop_btn)
@@ -74,15 +91,18 @@ class DiscoveryModule(QWidget):
         root.addWidget(table_card, 1)
 
     def _run(self) -> None:
+        """清空旧结果并提交扫描任务到后台线程。"""
         self.table.setRowCount(0)
         job = DiscoveryJob(self.cidr.text())
         self.worker.submit(job, on_result=self._show, on_progress=self._prog)
 
     def _prog(self, done: int, total: int) -> None:
+        """进度回调：根据已扫/总数设置进度条。"""
         self.bar.setMaximum(total)
         self.bar.setValue(done)
 
     def _show(self, hosts) -> None:
+        """结果回调：填满表格并逐条 publish ``discovery.host`` 事件。"""
         self.bar.setValue(self.bar.maximum())
         self.table.setRowCount(len(hosts))
         for i, h in enumerate(hosts):

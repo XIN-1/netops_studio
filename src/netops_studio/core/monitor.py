@@ -88,7 +88,10 @@ def _mp_model(version) -> int:
 
 
 def snmp_get(target: str, oid: str, community: str = "public", version=2) -> List[Dict[str, str]]:
-    """SNMP GET。返回 [{'oid','value','type'}, ...]。缺失 pysnmp 抛清晰错误。"""
+    """SNMP GET。返回 [{'oid','value','type'}, ...]。缺失 pysnmp 抛清晰错误。
+
+    version 仅支持 1 / 2c（经 _mp_model 映射），v3 当前显式拒绝。
+    """
     try:
         from pysnmp.hlapi import (  # type: ignore
             CommunityData, ContextData, ObjectIdentity, ObjectType,
@@ -196,6 +199,7 @@ def parse_syslog(line: str) -> Dict[str, object]:
 
     m = re.match(r"^<(\d{1,3})>(.*)$", line)
     if m:
+        # PRI = facility * 8 + severity（RFC5424 / RFC3164 的优先级编码）
         pri = int(m.group(1))
         facility = pri // 8
         severity = pri % 8

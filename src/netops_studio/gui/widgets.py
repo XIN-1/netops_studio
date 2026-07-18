@@ -40,17 +40,33 @@ class SectionTitle(QLabel):
 
 
 class PrimaryButton(QPushButton):
+    """主操作按钮（强调色实心）。
+
+    用于模块内最关键的单次动作（如「开始」「运行」）。
+    视觉由 app/theme.py 中 role="primary" 的 QSS 控制。
+    """
+
     def __init__(self, text: str = "", parent: QWidget | None = None) -> None:
         super().__init__(text, parent)
 
 
 class GhostButton(QPushButton):
+    """幽灵按钮（透明描边，次一级操作）。
+
+    role="ghost" 的 QSS 提供轻量描边样式，常用于「取消」「重置」等次级动作。
+    """
+
     def __init__(self, text: str = "", parent: QWidget | None = None) -> None:
         super().__init__(text, parent)
         self.setProperty("role", "ghost")
 
 
 class DangerButton(QPushButton):
+    """危险操作按钮（红色，破坏性动作）。
+
+    role="danger" 的 QSS 提供红色强调样式，仅用于删除/停止等危险操作。
+    """
+
     def __init__(self, text: str = "", parent: QWidget | None = None) -> None:
         super().__init__(text, parent)
         self.setProperty("role", "danger")
@@ -98,6 +114,7 @@ class StatCard(QFrame):
         root.addLayout(text_col, 1)
 
     def set_value(self, value: str) -> None:
+        """更新指标数值显示（大号粗体文本）。"""
         self._value.setText(value)
 
 

@@ -20,7 +20,7 @@ DEFAULT_PATH = os.path.join(DATA_DIR, "ipam.json")
 
 
 def _norm_cidr(cidr: str) -> str:
-    """归整 CIDR 为规范网络地址字符串（宽松模式）。"""
+    """归整 CIDR 为规范网络地址字符串（宽松模式，剥离主机位）。"""
     cidr = (cidr or "").strip()
     if not cidr:
         raise ValueError("CIDR 不能为空")
@@ -28,7 +28,7 @@ def _norm_cidr(cidr: str) -> str:
 
 
 def _usable(cidr: str) -> int:
-    """可用主机数（与 core/subnet.calculate 一致，取 net.hosts() 数量）。"""
+    """可用主机数 = net.hosts() 数量（与 core/subnet.calculate 口径一致）。"""
     net = ipaddress.ip_network(cidr, strict=False)
     return len(list(net.hosts()))
 
@@ -64,6 +64,7 @@ class IpamStore:
 
     # ---- 内部查询 ----
     def _find(self, cidr: str) -> Optional[Dict[str, Any]]:
+        """按网络身份（忽略主机位）查找子网条目，未找到返回 None。"""
         target = ipaddress.ip_network(cidr, strict=False)
         for sub in self.data["subnets"]:
             if ipaddress.ip_network(sub["cidr"], strict=False) == target:
@@ -71,10 +72,12 @@ class IpamStore:
         return None
 
     def has_subnet(self, cidr: str) -> bool:
+        """判断子网是否已登记。"""
         return self._find(cidr) is not None
 
     # ---- 子网管理 ----
     def add_subnet(self, cidr: str) -> Dict[str, Any]:
+        """新增子网；已存在则抛异常。返回新建的 subnet 字典。"""
         if self._find(cidr) is not None:
             raise ValueError(f"子网已存在：{cidr}")
         sub = {"cidr": _norm_cidr(cidr), "allocations": []}
@@ -83,6 +86,7 @@ class IpamStore:
         return sub
 
     def remove_subnet(self, cidr: str) -> None:
+        """删除子网及其全部分配记录；不存在则抛异常。"""
         sub = self._find(cidr)
         if sub is None:
             raise ValueError(f"子网不存在：{cidr}")

@@ -70,6 +70,7 @@ def ping(target: str, count: int = 4, timeout: int = 2) -> PingResult:
 
 
 def _parse_ping(target: str, raw: str) -> PingResult:
+    """解析 ping 命令输出（Windows / 类 Unix 两种格式）为 PingResult。"""
     import re
 
     res = PingResult(target=target, raw=raw)
@@ -127,7 +128,10 @@ def traceroute(target: str, max_hops: int = 30, timeout: int = 2) -> TraceResult
 
 
 def _parse_traceroute(target: str, raw: str) -> TraceResult:
+    """解析 traceroute/tracert 输出为 TraceResult（逐跳提取 IP 与 RTT）。"""
     res = TraceResult(target=target, raw=raw)
+    # 注：本文件未在顶层 import re，此处通过 __import__("re") 取得标准库模块引用，
+    # 与 _parse_ping 中的 `import re` 风格不一致，建议后续统一为顶层 import。
     re = __import__("re")
     for line in raw.splitlines():
         m = re.match(r"\s*(\d+)\s+(.+)", line)
@@ -182,6 +186,7 @@ def port_scan(target: str, ports, timeout: float = 0.5) -> List[PortScanResult]:
 
 
 def _expand_ports(spec: str) -> List[int]:
+    """将 "22,80,100-110" 形式的端口规格展开为整数列表（含区间端点）。"""
     ports: List[int] = []
     for part in spec.split(","):
         part = part.strip()

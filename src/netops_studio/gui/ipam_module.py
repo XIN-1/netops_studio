@@ -31,6 +31,14 @@ class ReconcileJob(JobBase):
 
 
 class IpamModule(QWidget):
+    """IP 地址管理模块（对应 core/ipam.py）。
+
+    管理子网增删、IP 分配/释放、利用率展示，并提供「与发现对账」：后台扫描网段
+    得到存活主机，再调用 core 的 reconcile/detect_conflicts 计算差异与冲突。
+    所有表格由 ``_refresh*`` 系列方法统一刷新。对账结果 publish ``ipam.reconcile``
+    事件。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.store = IpamStore()
@@ -99,11 +107,13 @@ class IpamModule(QWidget):
 
     # ---- 刷新 ----
     def _refresh(self) -> None:
+        """统一刷新子网、分配明细、冲突三块视图。"""
         self._refresh_subnets()
         self._refresh_allocations()
         self._refresh_conflicts()
 
     def _refresh_subnets(self) -> None:
+        """渲染子网表（CIDR + 利用率进度条）并重建子网下拉选项。"""
         subs = self.store.data["subnets"]
         self.subnet_table.setRowCount(len(subs))
         self.sub_select.clear()
@@ -118,6 +128,7 @@ class IpamModule(QWidget):
             self.sub_select.addItem(sub["cidr"])
 
     def _refresh_allocations(self) -> None:
+        """渲染所有子网下已分配 IP 的明细（含所有者/备注/状态）。"""
         rows = []
         for sub in self.store.data["subnets"]:
             for a in sub["allocations"]:
@@ -132,6 +143,7 @@ class IpamModule(QWidget):
             self.alloc_table.setItem(i, 4, QTableWidgetItem(s))
 
     def _refresh_conflicts(self) -> None:
+        """渲染冲突视图：调用 core.detect_conflicts 比对 store 与最近发现结果。"""
         conflicts = detect_conflicts(self.store, self._discovered)
         self.conflict_table.setRowCount(len(conflicts))
         for i, c in enumerate(conflicts):
@@ -142,6 +154,7 @@ class IpamModule(QWidget):
 
     # ---- 操作 ----
     def _add_subnet(self) -> None:
+        """向 store 新增子网并刷新；失败信息写入进度条格式位。"""
         try:
             self.store.add_subnet(self.cidr_input.text())
             self._refresh()
@@ -149,6 +162,7 @@ class IpamModule(QWidget):
             self.bar.setFormat(f"错误：{exc}")
 
     def _allocate(self) -> None:
+        """在当前子网中分配一个 IP 给指定所有者。"""
         cidr = self.sub_select.currentText()
         if not cidr:
             return
@@ -160,6 +174,7 @@ class IpamModule(QWidget):
             self.bar.setFormat(f"错误：{exc}")
 
     def _release(self) -> None:
+        """释放表格中所选行的 IP。"""
         row = self.alloc_table.currentRow()
         if row < 0:
             return
@@ -172,6 +187,7 @@ class IpamModule(QWidget):
             self.bar.setFormat(f"错误：{exc}")
 
     def _reconcile(self) -> None:
+        """提交对账任务：先进度条置为「忙碌态」（range 0,0），后台扫描网段。"""
         cidr = self.sub_select.currentText()
         if not cidr:
             return
@@ -180,10 +196,12 @@ class IpamModule(QWidget):
         self.worker.submit(job, on_result=self._on_reconcile_done, on_progress=self._on_prog)
 
     def _on_prog(self, done: int, total: int) -> None:
+        """进度回调：重置进度条范围并反映扫描进度。"""
         self.bar.setRange(0, total)
         self.bar.setValue(done)
 
     def _on_reconcile_done(self, hosts) -> None:
+        """结果回调：整理存活主机并 reconcile，刷新视图并广播事件。"""
         self._discovered = [{"ip": h.ip, "mac": h.mac, "status": h.state} for h in hosts]
         summary = reconcile(self.store, self._discovered)
         self.bar.setRange(0, 1)

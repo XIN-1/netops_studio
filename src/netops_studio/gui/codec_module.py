@@ -11,6 +11,12 @@ from .widgets import Card, PrimaryButton, SectionTitle
 
 
 class CodecModule(QWidget):
+    """编解码/转换工具模块（对应 core/codec.py）。
+
+    通过下拉框选择操作（Base64/URL/哈希/进制/时间戳/JWT/PEM/Hex 等），
+    按操作动态显隐算法与进制参数，点击「处理」同步调用对应 core 函数并输出结果。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         root = QVBoxLayout(self)
@@ -66,15 +72,18 @@ class CodecModule(QWidget):
         self.out.setReadOnly(True)
         out_card.body.addWidget(self.out, 1)
         root.addWidget(out_card, 1)
+        # 初始化参数下拉可见性（currentTextChanged 已在构造期连接，但首次需手动触发）
         self._on_op()
 
     def _on_op(self) -> None:
+        """根据所选操作显隐「算法/参数」相关的下拉框。"""
         op = self.op.currentText()
         self.algo.setVisible(op == "哈希")
         self.from_base.setVisible(op == "进制转换")
         self.to_base.setVisible(op == "进制转换")
 
     def _run(self) -> None:
+        """按当前操作分派到 core/codec.py 对应函数，错误回显到结果框。"""
         op = self.op.currentText()
         text = self.inp.toPlainText()
         try:

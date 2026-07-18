@@ -20,6 +20,8 @@ _SYSTEM = platform.system().lower()
 
 @dataclass
 class Host:
+    """一次扫描发现的存活主机（含尽力解析的主机名 / MAC / 厂商）。"""
+
     ip: str
     hostname: str = ""
     mac: str = ""
@@ -74,17 +76,22 @@ def scan_network(
 
 
 def _enrich(host: Host) -> Host:
-    # 主机名
+    """补充主机名与 MAC/厂商信息（尽力而为，失败不影响存活判定）。"""
+    # 主机名：反向 DNS 解析，失败则留空
     try:
         host.hostname = socket.gethostbyaddr(host.ip)[0]
     except Exception:  # noqa: BLE001
         host.hostname = ""
-    # MAC（尽力而为，需权限）
+    # MAC（尽力而为，需权限）：解析失败则以 ("", "") 兜底
     host.mac, host.vendor = _resolve_mac(host.ip)
     return host
 
 
 def _resolve_mac(ip: str) -> (str, str):
+    """解析指定 IP 的 MAC 与厂商（OUI）。返回 (mac, vendor)，查不到则 ("", "")。
+
+    注：返回标注 (str, str) 为旧式元组注解（等价于 tuple[str, str]）。
+    """
     try:
         if _SYSTEM == "windows":
             out = subprocess.run(["arp", "-a", ip], capture_output=True, text=True, timeout=5).stdout
@@ -105,7 +112,7 @@ def _resolve_mac(ip: str) -> (str, str):
 
 
 def _oui_lookup(mac: str) -> str:
-    """根据 MAC 前 3 字节（OUI）粗略判断厂商。"""
+    """根据 MAC 前 3 字节（OUI）粗略判断厂商（内嵌小型表，未知返回空串）。"""
     oui = mac.replace("-", "").replace(":", "").upper()[:6]
     table = {
         "000C29": "VMware",

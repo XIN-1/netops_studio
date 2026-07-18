@@ -46,6 +46,13 @@ class AvIotJob(JobBase):
 
 
 class AvIotModule(QWidget):
+    """音视频与物联模块（对应 core/av_iot.py）。
+
+    提供三类操作：ONVIF 设备发现（WS-Discovery 多播）、RTSP 流探测（SDP/轨道
+    解析）、基于 E-model 的 SIP/VoIP 语音质量（MOS）评估。三类任务经 AsyncWorker
+    后台执行，结果按类型自适应渲染到统一表格与原始文本区。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.worker = AsyncWorker()
@@ -111,6 +118,7 @@ class AvIotModule(QWidget):
 
     # ----- 触发 ----
     def _onvif(self) -> None:
+        """提交 ONVIF 设备发现任务（超时取自输入框）。"""
         self.raw.clear()
         self.progress.setText("ONVIF 发现中…")
         job = AvIotJob("ONVIF发现", timeout=float(self.onvif_timeout.text() or 3))
@@ -118,6 +126,7 @@ class AvIotModule(QWidget):
                            on_error=self._err, on_finished=self._done)
 
     def _stream(self) -> None:
+        """提交 RTSP 流探测任务（需手动填 URL，可选用户名/密码）。"""
         self.raw.clear()
         self.progress.setText("RTSP 流探测中…")
         job = AvIotJob(
@@ -131,6 +140,7 @@ class AvIotModule(QWidget):
                            on_error=self._err, on_finished=self._done)
 
     def _mos(self) -> None:
+        """提交语音质量（MOS）评估任务；输入非数字时直接提示并中止。"""
         self.raw.clear()
         try:
             loss = float(self.loss.text() or 0)
@@ -143,8 +153,9 @@ class AvIotModule(QWidget):
         self.worker.submit(job, on_result=self._show_mos,
                            on_error=self._err, on_finished=self._done)
 
-    # ----- 渲染 ----
+    # ----- 渲染 -----
     def _show_onvif(self, devices) -> None:
+        """渲染 ONVIF 设备列表（端点/类型/XAddrs/Scopes）。"""
         self.raw.setPlainText(f"发现 {len(devices)} 台设备")
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(["端点", "类型", "XAddrs", "Scopes"])
@@ -156,6 +167,7 @@ class AvIotModule(QWidget):
             self.table.setItem(i, 3, QTableWidgetItem(" ".join(d.scopes)))
 
     def _show_stream(self, result) -> None:
+        """渲染 RTSP 流 SDP 原文与轨道（媒体/编解码/时钟/控制）。"""
         self.raw.setPlainText(result.get("sdp", ""))
         tracks = result.get("tracks", [])
         self.table.setColumnCount(4)
@@ -169,6 +181,7 @@ class AvIotModule(QWidget):
             self.table.setItem(i, 3, QTableWidgetItem(t.control))
 
     def _show_mos(self, mos) -> None:
+        """渲染 MOS 评估：按阈值映射质量等级（优/良/中/差/不可接受）。"""
         rating = (
             "优" if mos >= 4.0 else
             "良" if mos >= 3.5 else
@@ -185,9 +198,11 @@ class AvIotModule(QWidget):
         self.raw.setPlainText(f"MOS = {mos:.2f}（{rating}）")
 
     def _err(self, msg: str) -> None:
+        """错误回调：标记出错并把异常信息写入原始文本区。"""
         self.progress.setText("出错")
         self.raw.setPlainText(msg)
 
     def _done(self) -> None:
+        """完成回调：若仍处于「…」进行态则置为完成（避免覆盖错误态）。"""
         if self.progress.text().endswith("…"):
             self.progress.setText("完成")

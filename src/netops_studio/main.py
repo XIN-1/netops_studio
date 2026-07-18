@@ -1,6 +1,7 @@
 """NetOps Studio 入口（main.py）。
 
-初始化容器、加载外壳、注册 tabs。参考文档 §4 / §10。
+程序启动流程：解析路径 -> 加载配置 -> 初始化主题/语言 -> 注入服务单例到容器 ->
+构建 Tab 注册表 -> 创建并显示主窗口 -> 进入 Qt 事件循环。对应开发文档 §4 / §10。
 """
 
 from __future__ import annotations
@@ -14,11 +15,13 @@ from .app import Theme, TabRegistry, TabDescriptor, container, set_locale
 from .app.application import NetOpsApplication
 from .app.event_bus import bus
 
-# 包目录（src/netops_studio），data 位于同级 data/
+# PKG_ROOT 即本文件所在目录（src/netops_studio）；DATA_DIR 为「包内 data/」子目录，
+# 用于存放 config.yaml 等运行时可写数据（并非与 src 平级的 data/）。
 PKG_ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(PKG_ROOT, "data")
 CONFIG_PATH = os.path.join(DATA_DIR, "config.yaml")
 
+# 配置默认值：缺失配置文件时写入；读到的配置缺字段时也以此兜底。
 DEFAULT_CONFIG = {
     "theme": "light",
     "language": "zh_CN",
@@ -28,18 +31,26 @@ DEFAULT_CONFIG = {
 
 
 def load_config() -> dict:
+    # 确保 data 目录存在（首次运行或目录被删时自动创建）。
     os.makedirs(DATA_DIR, exist_ok=True)
+    # 无配置文件则写入默认并直接返回。
     if not os.path.isfile(CONFIG_PATH):
         with open(CONFIG_PATH, "w", encoding="utf-8") as f:
             yaml.safe_dump(DEFAULT_CONFIG, f, allow_unicode=True)
         return dict(DEFAULT_CONFIG)
+    # 已有配置：解析；为空/解析失败则用默认兜底（避免 None 导致后续 .get 报错）。
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         return yaml.safe_load(f) or dict(DEFAULT_CONFIG)
 
 
 def build_registry() -> TabRegistry:
+    """注册全部 20 个功能 Tab（按阶段 1→2→3 顺序），返回 TabRegistry。
+
+    注册顺序即阶段分组顺序；同一阶段内的展示顺序由 NavPanel 再按 (stage, title)
+    排序决定。各 factory 为 lambda 延迟构造（真正的 widget 在首次切换时才创建）。
+    """
     reg = TabRegistry()
-    # ---- MVP（阶段 1）----
+    # ---- 阶段 1：基础运维（MVP）----
     from .gui.dashboard import Dashboard
     from .gui.discovery_module import DiscoveryModule
     from .gui.diagnostic_module import DiagnosticModule
@@ -48,7 +59,7 @@ def build_registry() -> TabRegistry:
     from .gui.codec_module import CodecModule
     from .gui.toolbox_module import ToolboxModule
 
-    # ---- 阶段 2 ----
+    # ---- 阶段 2：监控排障 ----
     from .gui.config_module import ConfigModule
     from .gui.monitor_module import MonitorModule
     from .gui.security_module import SecurityModule
@@ -60,7 +71,7 @@ def build_registry() -> TabRegistry:
     from .gui.flow_module import FlowModule
     from .gui.oob_module import OobModule
 
-    # ---- 阶段 3 ----
+    # ---- 阶段 3：平台智能 ----
     from .gui.ai_module import AiModule
     from .gui.integration_module import IntegrationModule
     from .gui.platform_module import PlatformModule
@@ -94,10 +105,11 @@ def main() -> int:
     app = NetOpsApplication(sys.argv)
     cfg = load_config()
 
+    # 主题与语言依据配置初始化（缺省 light / zh_CN）。
     theme = Theme(cfg.get("theme", "light"))
     set_locale(cfg.get("language", "zh_CN"))
 
-    # 注入服务单例
+    # 注入服务单例到容器，供各模块按需解析（key: theme / config / bus）。
     container.register_instance("theme", theme)
     container.register_instance("config", cfg)
     container.register_instance("bus", bus)
@@ -109,7 +121,7 @@ def main() -> int:
     win = MainWindow(registry, theme)
     win.show()
 
-    # 默认进入仪表盘
+    # 默认进入仪表盘（factory 存在时才切换，避免空注册表时出错）。
     first = registry.get("dashboard")
     if first and first.factory:
         win._select("dashboard")

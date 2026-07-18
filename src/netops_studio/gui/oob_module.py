@@ -50,6 +50,13 @@ class OobJob(JobBase):
 
 
 class OobModule(QWidget):
+    """带外与机房模块（对应 core/outofband.py）。
+
+    两块能力：(1) 带外遥测——Redfish / ipmitool 传感器、温湿度、PDU 控制（经
+    AsyncWorker 后台执行，统一以 key/value 表格渲染）；(2) 机架管理——本地
+    RackStore 持久化的机架/设备增删（直接操作，无需后台线程）。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.worker = AsyncWorker()
@@ -154,6 +161,7 @@ class OobModule(QWidget):
 
     # -- 网络操作（AsyncWorker）--
     def _submit(self, op: str, **kwargs: object) -> None:
+        """提交一次带外/机房后台任务并清空结果区。"""
         self.status.setText(f"执行 {op} …")
         self.raw.clear()
         self.table.setRowCount(0)
@@ -161,10 +169,12 @@ class OobModule(QWidget):
         self.worker.submit(job, on_result=self._show, on_error=self._err)
 
     def _err(self, msg: str) -> None:
+        """错误回调：标记错误并展示异常文本。"""
         self.status.setText("错误")
         self.raw.setPlainText(msg)
 
     def _sensors(self) -> None:
+        """获取传感器：Redfish 协议走 redfish 分支，否则走 ipmitool 分支。"""
         if self.proto.currentText().startswith("Redfish"):
             self._submit("redfish", url=self.addr.text().strip(),
                          user=self.user.text().strip(), pwd=self.pwd.text())
@@ -173,19 +183,23 @@ class OobModule(QWidget):
                          user=self.user.text().strip(), pwd=self.pwd.text())
 
     def _env(self) -> None:
+        """获取温湿度：应走 env 分支（parse_env）。"""
         self._submit("ipmitool", host=self.addr.text().strip(),
                      user=self.user.text().strip(), pwd=self.pwd.text())
 
     def _pdu_rest(self) -> None:
+        """PDU 控制（REST 方式，outlet 为字符串）。"""
         self._submit("pdu_rest", url=self.addr.text().strip(),
                      outlet="1", action="on")
 
     def _pdu_snmp(self) -> None:
+        """PDU 控制（SNMP 方式，outlet 为整数）。"""
         self._submit("pdu_snmp", host=self.addr.text().strip(),
                      outlet=1, action="on")
 
     # -- 结果渲染（统一 key/value 表格）--
     def _show(self, res: dict) -> None:
+        """结果回调：按 op（redfish/ipmitool/env/pdu）格式化展示。"""
         op = res.get("op")
         data = res.get("data")
         rows: list = []
@@ -225,6 +239,7 @@ class OobModule(QWidget):
             self.raw.setPlainText(data.get("message", ""))
 
     def _set_rows(self, rows: list) -> None:
+        """以「项目/值」双列表渲染键值对。"""
         self.table.setColumnCount(2)
         self.table.setHorizontalHeaderLabels(["项目", "值"])
         self.table.setRowCount(len(rows))
@@ -234,6 +249,7 @@ class OobModule(QWidget):
 
     # -- 机架管理（本地直接操作）--
     def _add_rack(self) -> None:
+        """新增机架（已存在则提示）。"""
         name = self.rack_name.text().strip()
         if not name:
             self.rack_status.setText("机架名不能为空")
@@ -245,6 +261,7 @@ class OobModule(QWidget):
         self._refresh_racks()
 
     def _add_device(self) -> None:
+        """向指定机架添加设备（U 位须为整数）。"""
         name = self.rack_name.text().strip()
         dev = self.dev_name.text().strip()
         if not name or not dev:
@@ -262,6 +279,7 @@ class OobModule(QWidget):
         self._refresh_racks()
 
     def _del_device(self) -> None:
+        """从指定机架删除设备。"""
         name = self.rack_name.text().strip()
         dev = self.dev_name.text().strip()
         if not name or not dev:
@@ -274,6 +292,7 @@ class OobModule(QWidget):
         self._refresh_racks()
 
     def _del_rack(self) -> None:
+        """删除指定机架。"""
         name = self.rack_name.text().strip()
         if not name:
             self.rack_status.setText("机架名不能为空")
@@ -285,6 +304,7 @@ class OobModule(QWidget):
         self._refresh_racks()
 
     def _refresh_racks(self) -> None:
+        """渲染机架-设备表格（机架/ U 位/ 设备/ 序列号）。"""
         rows: list = []
         for r in self.store.racks:
             rack = r.get("name", "")

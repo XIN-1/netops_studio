@@ -52,6 +52,13 @@ class AnalyzeJob(JobBase):
 
 
 class CaptureModule(QWidget):
+    """抓包分析模块（对应 core/capture.py）。
+
+    支持选择网卡抓包到临时/指定 pcap，或分析已有 pcap；耗时操作（capture /
+    analyze_pcap）均经 AsyncWorker 后台执行。结果以三个 Tab 渲染：协议字节分布、
+    会话 TopN、异常列表。网卡列表依赖 tshark，缺失时给出友好提示。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.worker = AsyncWorker()
@@ -113,6 +120,7 @@ class CaptureModule(QWidget):
 
     # ---------------------------------------------------------------- 交互
     def _browse(self) -> None:
+        """打开文件选择对话框，选定要分析的 pcap 路径。"""
         path, _ = QFileDialog.getOpenFileName(
             self, "选择 pcap", "", "pcap (*.pcap *.pcapng);;All (*)"
         )
@@ -120,6 +128,7 @@ class CaptureModule(QWidget):
             self.file_edit.setText(path)
 
     def _refresh_ifaces(self) -> None:
+        """调用 capcore.list_interfaces 刷新网卡下拉；tshark 缺失时友好提示。"""
         self.iface.clear()
         try:
             ifaces = capcore.list_interfaces()
@@ -135,6 +144,7 @@ class CaptureModule(QWidget):
         self.status.setText(f"已发现 {len(ifaces)} 个网卡" if ifaces else "未发现网卡")
 
     def _capture(self) -> None:
+        """校验网卡后提交抓包任务；未指定输出文件则落到临时目录。"""
         iface = self.iface.currentData() or self.iface.currentText()
         if not iface:
             self.status.setText("请先选择网卡（点击『刷新网卡』）")
@@ -148,6 +158,7 @@ class CaptureModule(QWidget):
         self.worker.submit(job, on_result=self._show, on_error=self._err)
 
     def _analyze(self) -> None:
+        """校验 pcap 文件存在后提交分析任务。"""
         pcap = self.file_edit.text().strip()
         if not pcap or not os.path.isfile(pcap):
             self.status.setText("请选择有效的 pcap 文件")
@@ -157,10 +168,12 @@ class CaptureModule(QWidget):
         self.worker.submit(job, on_result=self._show, on_error=self._err)
 
     def _err(self, msg: str) -> None:
+        """错误回调：在状态标签展示后台任务异常。"""
         self.status.setText(f"错误：{msg}")
 
     # ---------------------------------------------------------------- 渲染
     def _show(self, result: dict) -> None:
+        """结果回调：渲染协议分布 / 会话 TopN（按字节取前 100）/ 异常三表。"""
         self.status.setText("完成")
 
         protos = result.get("protocols", {})

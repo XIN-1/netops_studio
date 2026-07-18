@@ -53,7 +53,10 @@ class User:
 
 
 def check_permission(role: str, action: str) -> bool:
-    """纯函数：判定 role 是否拥有 action 权限。"""
+    """纯函数：判定 role 是否拥有 action 权限。
+
+    "*" 表示全部权限；未知角色（不在 ROLES 中）一律拒绝。
+    """
     perms = ROLES.get(role)
     if perms is None:
         return False
@@ -64,6 +67,7 @@ def check_permission(role: str, action: str) -> bool:
 # 审计日志（持久化 data/audit.json）
 # --------------------------------------------------------------------------
 def _now_iso() -> str:
+    """当前时间的 ISO 字符串（秒精度），用于审计条目的时间戳。"""
     return datetime.now().isoformat(timespec="seconds")
 
 
@@ -95,6 +99,7 @@ class AuditLog:
         return entry
 
     def load(self) -> List[dict]:
+        """读取审计日志列表；文件缺失或内容损坏时返回空列表（绝不抛错）。"""
         if not os.path.isfile(self.path):
             return []
         try:
@@ -120,6 +125,7 @@ class AuditLog:
         return out
 
     def _write(self, logs: List[dict]) -> None:
+        """将审计列表整体写回 JSON 文件（覆盖式）。"""
         parent = os.path.dirname(self.path)
         if parent:
             os.makedirs(parent, exist_ok=True)
@@ -187,7 +193,7 @@ def ensure_sample_plugins(dir: Optional[str] = None) -> List[str]:
 # --------------------------------------------------------------------------
 # 命令面板：ACTIONS 注册表 + 搜索
 # --------------------------------------------------------------------------
-# 注册表：action 名称 -> 描述
+# 注册表：action 名称 -> 描述（用于命令面板搜索，与 rbac.ROLES 的权限点不完全对应）
 ACTIONS: Dict[str, str] = {
     "discovery.scan": "扫描网络资产",
     "diagnostics.ping": "Ping 主机",

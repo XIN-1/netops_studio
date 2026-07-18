@@ -13,6 +13,11 @@ from .widgets import Card, PrimaryButton, SectionTitle
 
 
 class ExternalJob(JobBase):
+    """外网测速任务（对应 core/speedtest.ExternalTester）。
+
+    在后台线程跑 HTTP 探针，结果经 ``signals.result`` 上报。
+    """
+
     def __init__(self, download_secs: int = 8) -> None:
         super().__init__()
         self.download_secs = download_secs
@@ -24,6 +29,13 @@ class ExternalJob(JobBase):
 
 
 class SpeedTestModule(QWidget):
+    """性能与测速模块（对应 core/speedtest.py）。
+
+    提供两块能力：外网 HTTP 探针（经 AsyncWorker 后台执行，期间禁用按钮）
+    与 iperf3 内网吞吐（需服务端）。两次测速结果均 publish ``speedtest.result``
+    事件供仪表盘聚合。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.worker = AsyncWorker()
@@ -79,14 +91,17 @@ class SpeedTestModule(QWidget):
         self._log(f"iperf3 内置二进制：{find_iperf3() or '未找到（将使用系统 PATH 或提示安装）'}")
 
     def _log(self, msg: str) -> None:
+        """向只读控制台追加一行日志。"""
         self.console.append(msg)
 
     def _external(self) -> None:
+        """触发外网测速：禁用按钮避免重复点击，完成后恢复。"""
         self.ext_btn.setEnabled(False)
         job = ExternalJob(download_secs=8)
         self.worker.submit(job, on_result=self._on_ext, on_finished=lambda: self.ext_btn.setEnabled(True))
 
     def _on_ext(self, res) -> None:
+        """外网测速结果回调：刷新读数并广播 ``speedtest.result``。"""
         self.ext_out.setText(
             f"下行 {res.download_mbps} Mbps | 上行 {res.upload_mbps} Mbps | "
             f"延迟 {res.latency_ms} ms | 丢包 {res.loss_percent}%"
@@ -95,6 +110,7 @@ class SpeedTestModule(QWidget):
         bus.publish("speedtest.result", res)
 
     def _iperf(self) -> None:
+        """运行 iperf3 客户端（同步，在 GUI 线程执行；耗时测试可能短暂卡顿）。"""
         try:
             client = Iperf3Client()
             if not client.available:

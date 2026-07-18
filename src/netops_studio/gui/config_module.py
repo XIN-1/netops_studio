@@ -37,6 +37,12 @@ class ConfigJob(JobBase):
 
 
 class ConfigModule(QWidget):
+    """设备配置管理模块（对应 core/config_mgmt.py）。
+
+    支持备份/下发/回滚（经 AsyncWorker 后台连设备执行），以及合规检查、差异比对、
+    凭据加密入库（本地纯函数，直接执行）。结果区复用同一 QTextEdit 展示。
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.worker = AsyncWorker()
@@ -103,6 +109,7 @@ class ConfigModule(QWidget):
 
     # -- 工具 --
     def _creds(self) -> dict:
+        """从表单组装连接凭据字典（host/username/password/vendor）。"""
         return {
             "host": self.host.text().strip(),
             "username": self.user.text().strip(),
@@ -111,24 +118,29 @@ class ConfigModule(QWidget):
         }
 
     def _submit(self, op: str, **kwargs: object) -> None:
+        """提交一次后台配置操作任务并清空结果区。"""
         self.status.setText(f"执行 {op} …")
         self.result.clear()
         job = ConfigJob(op, **kwargs)
         self.worker.submit(job, on_result=self._show, on_error=self._err)
 
     def _err(self, msg: str) -> None:
+        """错误回调：标记错误并展示异常信息。"""
         self.status.setText("错误")
         self.result.setPlainText(msg)
 
     # -- 操作：网络类（走 AsyncWorker）--
     def _backup(self) -> None:
+        """提交备份任务。"""
         self._submit("backup", device=self.device.text().strip(), creds=self._creds())
 
     def _push(self) -> None:
+        """提交配置下发任务（下发当前编辑区内容）。"""
         self._submit("push", device=self.device.text().strip(),
                      creds=self._creds(), content=self.content.toPlainText())
 
     def _rollback(self) -> None:
+        """提交回滚任务；未填时间戳则取最近一份备份。"""
         ts = self.ts.text().strip()
         if not ts:
             backups = config_mgmt.list_backups(self.device.text().strip())
@@ -140,6 +152,7 @@ class ConfigModule(QWidget):
 
     # -- 操作：本地纯函数（直接执行）--
     def _check(self) -> None:
+        """本地合规检查：用基线规则校验编辑区配置，列出违规项。"""
         text = self.content.toPlainText()
         rules = config_mgmt.default_baseline_rules()
         violations = config_mgmt.check_baseline(text, rules)
@@ -155,6 +168,7 @@ class ConfigModule(QWidget):
         self.result.setPlainText("\n".join(lines))
 
     def _diff(self) -> None:
+        """差异比对：取基准备份与当前编辑区内容做 diff。"""
         device = self.device.text().strip()
         backups = config_mgmt.list_backups(device)
         if not backups:
@@ -172,6 +186,7 @@ class ConfigModule(QWidget):
         self.result.setPlainText(diff or "（无差异）")
 
     def _save_cred(self) -> None:
+        """将当前用户名/密码加密存入凭据保险箱。"""
         name = self.cred_name.text().strip()
         if not name:
             self._err("凭据名不能为空")
@@ -183,6 +198,7 @@ class ConfigModule(QWidget):
 
     # -- 结果渲染 --
     def _show(self, res: dict) -> None:
+        """结果回调：按 op 类型（backup/push/rollback）格式化展示返回数据。"""
         op = res.get("op")
         data = res.get("data")
         if op == "backup":
