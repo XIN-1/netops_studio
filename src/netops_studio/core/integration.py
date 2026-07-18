@@ -19,8 +19,8 @@ import csv
 import io
 import json
 import threading
-from dataclasses import asdict, dataclass
-from typing import Any, Dict, List, Optional
+from dataclasses import asdict
+from typing import Any, Dict, List
 
 from .discovery import Host, scan_network
 from .speedtest import ExternalTester

@@ -15,7 +15,6 @@ from PySide6.QtWidgets import (
     QLabel, QHBoxLayout, QListWidget, QListWidgetItem, QVBoxLayout, QWidget,
 )
 
-from ...app import tr
 from ...app.tab_registry import TabRegistry
 
 # 各阶段在导航中显示的分组标题；缺省阶段回退为「阶段 N」。

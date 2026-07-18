@@ -96,10 +96,13 @@ class IpamStore:
 
 # ---- 纯函数（操作 IpamStore）----
 
-def allocate(store: IpamStore, cidr: str, owner: str, note: str = "") -> str:
+def allocate(store: IpamStore, cidr: str, owner: str, note: str = "",
+             mac: str = "") -> str:
     """为指定子网分配一个空闲 IP，返回分配的地址字符串。
 
     纯函数地查找未占用地址（不依赖外部状态），随后写入存储。
+    mac 为可选字段：记录该 IP 期望绑定的 MAC（用于后续 IP-MAC 冲突检测），
+    缺省为空串（表示未登记 MAC）。
     """
     sub = store._find(cidr)
     if sub is None:
@@ -113,6 +116,7 @@ def allocate(store: IpamStore, cidr: str, owner: str, note: str = "") -> str:
                 "ip": ip,
                 "owner": owner or "",
                 "note": note or "",
+                "mac": mac or "",
                 "status": "offline",
             })
             store.save()
@@ -217,6 +221,11 @@ def reconcile(store: IpamStore, discovered_hosts: List[Dict[str, Any]]) -> Dict[
                     "old": old, "new": new_status,
                 })
                 a["status"] = new_status
+            # 回填发现端报告的 MAC：detect_conflicts 借此比对 IP-MAC 是否漂移；
+            # 仅当该 IP 确实在发现结果中、且发现端带有 MAC 时才覆盖（dh 为 None
+            # 时跳过，避免对缺失主机误写）。
+            if dh is not None and dh.get("mac"):
+                a["mac"] = dh.get("mac")
     store.save()
     total = sum(len(s["allocations"]) for s in store.data["subnets"])
     online = sum(1 for s in store.data["subnets"] for a in s["allocations"]
@@ -226,4 +235,29 @@ def reconcile(store: IpamStore, discovered_hosts: List[Dict[str, Any]]) -> Dict[
         "online": online,
         "offline": total - online,
         "total": total,
+    }
+
+
+def summary(store: Optional[IpamStore] = None, **opts: Any) -> Dict[str, Any]:
+    """汇总 IPAM 现状，供 report.gather 调用。
+
+    返回子网数、分配数，以及各子网的利用率（百分比）。当传入自定义 store
+    （如单元测试）时使用之，否则回落到默认 IpamStore（data/ipam.json）。
+    """
+    store = store or IpamStore()
+    subnets = store.data.get("subnets", [])
+    subnet_count = len(subnets)
+    allocation_count = sum(len(s.get("allocations", [])) for s in subnets)
+    # 各子网利用率：复用 utilisation 纯函数，单条异常不影响整体汇总。
+    util: Dict[str, Any] = {}
+    for s in subnets:
+        try:
+            util[s["cidr"]] = utilization(s["cidr"], store)
+        except Exception:  # noqa: BLE001
+            util[s["cidr"]] = None
+    return {
+        "ok": True,
+        "subnet_count": subnet_count,
+        "allocation_count": allocation_count,
+        "utilization": util,
     }

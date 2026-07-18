@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFormLayout, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QPushButton,
-    QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout, QWidget,
+    QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
 from ..app import AsyncWorker

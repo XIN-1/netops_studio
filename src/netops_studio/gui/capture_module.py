@@ -10,7 +10,6 @@ import os
 import tempfile
 import time
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox, QFileDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QSpinBox, QTabWidget, QTableWidget, QTableWidgetItem,

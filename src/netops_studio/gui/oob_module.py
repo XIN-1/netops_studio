@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
     QTableWidget, QTableWidgetItem, QTabWidget, QTextEdit, QVBoxLayout, QWidget,
@@ -183,8 +182,8 @@ class OobModule(QWidget):
                          user=self.user.text().strip(), pwd=self.pwd.text())
 
     def _env(self) -> None:
-        """获取温湿度：应走 env 分支（parse_env）。"""
-        self._submit("ipmitool", host=self.addr.text().strip(),
+        """获取温湿度：走 env 分支（get_sensors + parse_env）。"""
+        self._submit("env", host=self.addr.text().strip(),
                      user=self.user.text().strip(), pwd=self.pwd.text())
 
     def _pdu_rest(self) -> None:

@@ -6,6 +6,8 @@ API 服务走 core 内部后台线程（start_api/stop_api）；外部系统测�
 
 from __future__ import annotations
 
+from typing import List
+
 from PySide6.QtWidgets import (
     QFileDialog, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QComboBox, QTableWidget, QTableWidgetItem, QTextEdit,

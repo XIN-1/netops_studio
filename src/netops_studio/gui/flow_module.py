@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QFileDialog, QFormLayout, QHBoxLayout, QLabel, QListWidget,
+    QFileDialog, QHBoxLayout, QLabel, QListWidget,
     QPushButton, QDoubleSpinBox, QLineEdit, QTableWidget, QTableWidgetItem,
     QVBoxLayout, QWidget,
 )

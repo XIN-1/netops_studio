@@ -12,8 +12,10 @@ import re
 import socket
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable, List, Optional
+
+from .toolbox import oui_lookup
 
 _SYSTEM = platform.system().lower()
 
@@ -91,6 +93,7 @@ def _resolve_mac(ip: str) -> (str, str):
     """解析指定 IP 的 MAC 与厂商（OUI）。返回 (mac, vendor)，查不到则 ("", "")。
 
     注：返回标注 (str, str) 为旧式元组注解（等价于 tuple[str, str]）。
+    OUI 厂商表统一复用 core/toolbox.oui_lookup（单一数据源，避免与工具箱重复且不一致）。
     """
     try:
         if _SYSTEM == "windows":
@@ -105,30 +108,7 @@ def _resolve_mac(ip: str) -> (str, str):
             m = re.search(r"([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}", out)
         if m:
             mac = m.group(0)
-            return mac, _oui_lookup(mac)
+            return mac, oui_lookup(mac)
     except Exception:  # noqa: BLE001
         pass
     return "", ""
-
-
-def _oui_lookup(mac: str) -> str:
-    """根据 MAC 前 3 字节（OUI）粗略判断厂商（内嵌小型表，未知返回空串）。"""
-    oui = mac.replace("-", "").replace(":", "").upper()[:6]
-    table = {
-        "000C29": "VMware",
-        "001C14": "Dell",
-        "001A2B": "Cisco",
-        "001B21": "Cisco",
-        "F44CAB": "Cisco",
-        "AC1F6B": "Huawei",
-        "3C970F": "Huawei",
-        "00E0FC": "Huawei",
-        "000FE2": "H3C",
-        "20F41B": "H3C",
-        "001A4B": "Juniper",
-        "B0C504": "Apple",
-        "3C22FB": "Apple",
-        "FCA667": "Apple",
-        "9C93E4": "Huawei",
-    }
-    return table.get(oui, "")

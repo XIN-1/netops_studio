@@ -11,10 +11,10 @@
 
 from __future__ import annotations
 
-import sys
 import traceback
 
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtCore import qInstallMessageHandler
+from PySide6.QtWidgets import QApplication
 
 
 class NetOpsApplication(QApplication):
@@ -25,15 +25,17 @@ class NetOpsApplication(QApplication):
         super().__init__(argv)
         # 记录最近一次被全局异常兜底层捕获的错误信息，便于外部排查。
         self._last_error: str = ""
+        # 安装 Qt 内部日志处理器（捕获警告/致命错误），使 qt_message_handler 真正生效。
+        qInstallMessageHandler(NetOpsApplication.qt_message_handler)
 
     @staticmethod
     def qt_message_handler(mode, context, message) -> None:
         # 统一捕获 Qt 内部警告/错误，便于排查（不弹窗，避免刷屏）。
-        # 注意：本处理器需在程序启动时通过
-        #   QtCore.qInstallMessageHandler(NetOpsApplication.qt_message_handler)
-        # 显式安装后才会生效；当前 main.py 并未安装，故它目前不会被调用。
+        # 已通过 qInstallMessageHandler 在 __init__ 中安装，故会随 Qt 日志触发。
         if mode == 4:  # QtFatalMsg
             print(f"[Qt FATAL] {message} ({context.file}:{context.line})")
+        elif mode == 3:  # QtWarningMsg
+            print(f"[Qt WARNING] {message}")
 
     def notify(self, receiver, event):  # type: ignore[override]
         # 全局异常兜底，避免单点崩溃导致整个应用退出。

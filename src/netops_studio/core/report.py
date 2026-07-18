@@ -176,10 +176,9 @@ def gather(sections: Optional[List[str]] = None, **opts: Any) -> Dict[str, Any]:
                 }
             elif sec == "ipam":
                 try:
-                    from . import ipam  # type: ignore  # 模块可能尚未实现
+                    from . import ipam  # type: ignore
 
-                    data["sections"]["ipam"] = ipam.summary(**opts) if hasattr(ipam, "summary") \
-                        else {"ok": False, "skipped": True, "error": "ipam 模块无 summary()"}
+                    data["sections"]["ipam"] = ipam.summary(**opts)
                 except ImportError:
                     data["sections"]["ipam"] = {
                         "ok": False, "skipped": True, "error": "ipam 模块未提供（已跳过）",
@@ -188,8 +187,7 @@ def gather(sections: Optional[List[str]] = None, **opts: Any) -> Dict[str, Any]:
                 try:
                     from . import security  # type: ignore
 
-                    data["sections"]["security"] = security.summary(**opts) if hasattr(security, "summary") \
-                        else {"ok": False, "skipped": True, "error": "security 模块无 summary()"}
+                    data["sections"]["security"] = security.summary(**opts)
                 except ImportError:
                     data["sections"]["security"] = {
                         "ok": False, "skipped": True, "error": "security 模块未提供（已跳过）",
@@ -323,7 +321,7 @@ def export_pdf(html: str, path: str) -> str:
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.platypus import (
-        HRFlowable, Paragraph, SimpleDocTemplate, Spacer, Table,
+        SimpleDocTemplate, Spacer, Table,
     )
 
     styles = getSampleStyleSheet()
@@ -331,10 +329,9 @@ def export_pdf(html: str, path: str) -> str:
     flow: List[Any] = []
 
     pos = 0
-    # 注意：此正则仅匹配无属性的 <table> 标签，而 render_html 实际输出为
-    # <table border='1' ...>。若后续未在此处放宽正则，PDF 中的表格将被整体跳过，
-    # 仅保留文字块（审计项，见汇报）。
-    for m in re.finditer(r"<table>.*?</table>", html, re.S):
+    # 匹配任意 <table ...> 标签（含 render_html 实际生成的 <table border='1' ...>）；
+    # \b[^>]* 允许 table 上携带任意属性，避免表格在 PDF 中被整体跳过。
+    for m in re.finditer(r"<table\b[^>]*>.*?</table>", html, re.S):
         _append_text_blocks(flow, html[pos:m.start()], styles)
         rows: List[List[str]] = []
         for tr in re.finditer(r"<tr>(.*?)</tr>", m.group(0), re.S):
@@ -367,8 +364,8 @@ def _append_text_blocks(flow: List[Any], html: str, styles) -> None:
     """把非表格的 HTML 片段转为 reportlab flowables（h1/h2/p/br）。"""
     from reportlab.platypus import Paragraph, Spacer
 
-    # 移除表格片段以防万一
-    frag = re.sub(r"<table>.*?</table>", "", html, flags=re.S)
+    # 移除表格片段以防万一（与 export_pdf 中的表格匹配保持一致）
+    frag = re.sub(r"<table\b[^>]*>.*?</table>", "", html, flags=re.S)
     # 按块级标签切分
     frag = re.sub(r"<h1>(.*?)</h1>", r"\n#H1#\1", frag, flags=re.S)
     frag = re.sub(r"<h2>(.*?)</h2>", r"\n#H2#\1", frag, flags=re.S)
@@ -393,7 +390,6 @@ def _append_text_blocks(flow: List[Any], html: str, styles) -> None:
 def export_docx(data: Dict[str, Any], path: str) -> str:
     """惰性导出为 Word 文档（python-docx）。"""
     from docx import Document
-    from docx.shared import Pt
 
     doc = Document()
     doc.add_heading("NetOps Studio 巡检报告", level=0)

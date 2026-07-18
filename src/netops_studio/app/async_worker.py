@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Optional
 
-from PySide6.QtCore import QRunnable, QThreadPool, Signal, QObject, Slot
+from PySide6.QtCore import QRunnable, QThreadPool, Signal, QObject
 
 
 class WorkerSignals(QObject):

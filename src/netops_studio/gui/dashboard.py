@@ -6,14 +6,13 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QLabel, QHBoxLayout, QListWidget, QListWidgetItem, QVBoxLayout, QWidget,
 )
 
 from ..app import bus
 from ..app.i18n import tr
-from .widgets import Card, ScrollBox, SectionTitle, StatCard
+from .widgets import Card, SectionTitle, StatCard
 
 
 class Dashboard(QWidget):

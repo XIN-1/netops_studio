@@ -14,7 +14,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Type, TypeVar
+from typing import Any, Callable, Dict, TypeVar
 
 T = TypeVar("T")  # 预留类型变量（当前解析接口按字符串 key 取 Any，未使用泛型约束）
 

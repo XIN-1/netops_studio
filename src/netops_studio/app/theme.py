@@ -19,7 +19,6 @@ QSS 选择器约定（各模块需遵循，方能套用样式）：
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict
 
 
 @dataclass
@@ -140,6 +139,16 @@ class Theme:
         QPushButton:hover {{ background-color: {t.accent_hover}; }}
         QPushButton:pressed {{ background-color: {t.accent_pressed}; }}
         QPushButton:disabled {{
+            background-color: {t.surface_hover};
+            color: {t.fg_muted};
+        }}
+        QPushButton[role="primary"] {{
+            background-color: {t.accent};
+            color: {t.on_accent};
+        }}
+        QPushButton[role="primary"]:hover {{ background-color: {t.accent_hover}; }}
+        QPushButton[role="primary"]:pressed {{ background-color: {t.accent_pressed}; }}
+        QPushButton[role="primary"]:disabled {{
             background-color: {t.surface_hover};
             color: {t.fg_muted};
         }}

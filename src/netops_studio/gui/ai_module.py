@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox, QHBoxLayout, QLabel, QLineEdit, QPushButton,
     QTextEdit, QVBoxLayout, QWidget,
 )
 
 from ..core.ai_assist import (
-    ACTIONS, VENDORS, assist, diagnose, extract_symptoms,
-    generate_command, lookup_kb, parse_intent,
+    ACTIONS, VENDORS, assist,
 )
 
 _ACTION_CN = {

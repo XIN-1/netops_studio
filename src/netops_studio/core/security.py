@@ -11,7 +11,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from .diagnostics import port_scan
 from . import codec
@@ -231,3 +231,20 @@ def audit_firewall(config_text: str) -> FirewallAuditResult:
         violations.append("未检测到显式 permit 规则，请确认默认策略与放行意图。")
 
     return FirewallAuditResult(total=total, violations=violations, unused=unused)
+
+
+def summary(**opts: Any) -> Dict[str, Any]:
+    """汇总安全模块本地能力现状（无需外部目标的离线统计），供 report.gather 调用。
+
+    返回可用审计能力清单、本地 CVE 记录数等；对需联网/目标的实时审计
+    （端口、防火墙、证书）仅列出能力，不在此触发，避免报表聚合产生副作用。
+    """
+    cve_records = len(lookup_cve(""))
+    return {
+        "ok": True,
+        "capabilities": [
+            "audit_ports", "audit_firewall", "check_password_strength",
+            "parse_cert_expiry", "lookup_cve",
+        ],
+        "cve_records": cve_records,
+    }

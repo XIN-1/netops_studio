@@ -28,6 +28,28 @@ class ExternalJob(JobBase):
         self.signals.result.emit(res)
 
 
+class IperfJob(JobBase):
+    """iperf3 内网吞吐任务（对应 core/speedtest.Iperf3Client）。
+
+    在后台线程跑 iperf3 客户端（大流量/长时长测试可能耗时数秒到数十秒），
+    避免阻塞 GUI 主线程导致界面卡顿；结果经 ``signals.result`` 上报。
+    """
+
+    def __init__(self, server: str, port: int, duration: int) -> None:
+        super().__init__()
+        self.server = server
+        self.port = port
+        self.duration = duration
+
+    def run_job(self) -> None:
+        client = Iperf3Client()
+        if not client.available:
+            # 以异常形式上抛，由 AsyncWorker 转成 error 信号统一处理（不阻塞线程）。
+            raise RuntimeError("未找到 iperf3，请安装 iperf3 或放入 resources/bin/<os>/")
+        res = client.run(self.server, self.port, duration=self.duration)
+        self.signals.result.emit(res)
+
+
 class SpeedTestModule(QWidget):
     """性能与测速模块（对应 core/speedtest.py）。
 
@@ -76,9 +98,9 @@ class SpeedTestModule(QWidget):
         il.addRow("端口", self.port)
         il.addRow("时长(秒)", self.dur)
         iperf.body.addLayout(il)
-        btn = PrimaryButton("运行 iperf3 客户端")
-        btn.clicked.connect(self._iperf)
-        iperf.body.addWidget(btn)
+        self.iperf_btn = PrimaryButton("运行 iperf3 客户端")
+        self.iperf_btn.clicked.connect(self._iperf)
+        iperf.body.addWidget(self.iperf_btn)
         root.addWidget(iperf)
 
         console_card = Card()
@@ -110,14 +132,32 @@ class SpeedTestModule(QWidget):
         bus.publish("speedtest.result", res)
 
     def _iperf(self) -> None:
-        """运行 iperf3 客户端（同步，在 GUI 线程执行；耗时测试可能短暂卡顿）。"""
+        """运行 iperf3 客户端（经 AsyncWorker 后台执行，避免阻塞 GUI 线程）。
+
+        提交前禁用按钮，完成后复位；结果回调里刷新日志并广播
+        ``speedtest.result`` 事件供仪表盘聚合。
+        """
         try:
-            client = Iperf3Client()
-            if not client.available:
-                self._log("未找到 iperf3，请安装 iperf3 或放入 resources/bin/<os>/")
-                return
-            res = client.run(self.server.text(), int(self.port.text()), duration=int(self.dur.text()))
-            self._log(f"iperf3 结果：{res.direction} {res.bandwidth_mbps} Mbps")
-            bus.publish("speedtest.result", res)
-        except Exception as exc:  # noqa: BLE001
-            self._log(f"iperf3 失败：{exc}")
+            port = int(self.port.text())
+            duration = int(self.dur.text())
+        except ValueError:
+            self._log("端口 / 时长必须为整数")
+            return
+        self.iperf_btn.setEnabled(False)
+        self._log(f"iperf3 客户端启动：{self.server.text()}:{port}，时长 {duration}s …")
+        job = IperfJob(self.server.text(), port, duration)
+        self.worker.submit(
+            job,
+            on_result=self._on_iperf,
+            on_error=self._on_iperf_error,
+            on_finished=lambda: self.iperf_btn.setEnabled(True),
+        )
+
+    def _on_iperf(self, res) -> None:
+        """iperf3 结果回调：刷新日志并广播 ``speedtest.result``。"""
+        self._log(f"iperf3 结果：{res.direction} {res.bandwidth_mbps} Mbps")
+        bus.publish("speedtest.result", res)
+
+    def _on_iperf_error(self, msg: str) -> None:
+        """iperf3 错误回调：在控制台回显异常文本。"""
+        self._log(f"iperf3 失败：{msg}")

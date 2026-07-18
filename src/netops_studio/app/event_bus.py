@@ -26,13 +26,24 @@ class EventBus:
         # setdefault 保证 topic 首次订阅时初始化空列表，再追加回调。
         self._subs.setdefault(topic, []).append(callback)
 
+    @staticmethod
+    def _key(cb: Callable):
+        """归一化回调身份，使「同一对象的同一绑定方法」可被稳定匹配。
+
+        - 普通函数 / lambda：以对象自身为 key（``c is callback`` 的等价形式）。
+        - 绑定方法（``self.method``）：每次访问都会生成新对象，故改用
+          ``(func, self)`` 作为身份——同一实例的同一方法视为同一订阅者，
+          从而支持正确退订（此前用身份比较导致绑定方法无法被移除）。
+        """
+        if hasattr(cb, "__self__") and hasattr(cb, "__func__"):
+            return ("method", cb.__func__, cb.__self__)
+        return ("other", cb)
+
     def unsubscribe(self, topic: str, callback: Callable) -> None:
-        # 注意：此处以 `c is not callback` 做身份比较，因此传入的 callback 必须
-        # 与订阅时**同一个对象**。对模块级函数 / lambda 没问题；但对「绑定方法」
-        # （如 self.on_event）而言，每次属性访问都会生成新对象，若用绑定方法订阅
-        # 后将无法被此处匹配移除（建议订阅/退订统一用同一函数引用或 functools.partial）。
+        # 以归一化 key 比较，使绑定方法也能被精确匹配移除（修复订阅泄漏）。
         if topic in self._subs:
-            self._subs[topic] = [c for c in self._subs[topic] if c is not callback]
+            key = self._key(callback)
+            self._subs[topic] = [c for c in self._subs[topic] if self._key(c) != key]
 
     def publish(self, topic: str, payload=None) -> None:
         # 先 list(...) 拷贝一份回调列表再遍历，避免遍历过程中（因订阅者内部又

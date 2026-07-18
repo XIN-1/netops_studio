@@ -5,16 +5,14 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, Optional
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QCheckBox, QComboBox, QFileDialog, QFormLayout, QGroupBox, QHBoxLayout,
+    QCheckBox, QComboBox, QFileDialog, QGroupBox, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QTextEdit, QVBoxLayout, QWidget,
 )
 
 from ..app import AsyncWorker, bus
 from ..app.async_worker import JobBase
 from ..core import report as report_core
-from ..core.report import InspectionJob
 
 _FORMAT_LABELS = {
     "html": "HTML",
