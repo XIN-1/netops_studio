@@ -4,3 +4,11 @@ __pycache__/
 .codebuddy/
 .venv/
 __pycache__
+
+# ---- 运行时生成的数据（首次运行自动重建，勿提交）----
+src/netops_studio/data/config.yaml
+src/netops_studio/data/credentials.json
+src/netops_studio/data/.crypto_key
+src/netops_studio/data/audit.json
+src/netops_studio/data/dashboard.json
+src/netops_studio/data/configs/
